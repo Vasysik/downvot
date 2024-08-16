@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 with open('config.json') as config_file:
     config = json.load(config_file)
     BOT_TOKEN = config['BOT_TOKEN']
+    ALLOWED_USERS = config['ALLOWED_USERS']
     PROXY = config['PROXY']
 
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -45,21 +46,27 @@ def quality_keyboard(available_qualities):
 
 @bot.message_handler(commands=['start'])
 def start_message(message):
-    logger.info(f"Пользователь {message.from_user.id} запустил бота")
-    bot.reply_to(message, "Здравствуйте. Я бот для загрузки медиафайлов. Пожалуйста, отправьте ссылку на видео или аудио.")
+    if str(message.from_user.username) in ALLOWED_USERS:
+        logger.info(f"Пользователь {message.from_user.username} запустил бота")
+        bot.reply_to(message, "Здравствуйте. Я бот для загрузки медиафайлов. Пожалуйста, отправьте ссылку на видео или аудио.")
+    else:
+        bot.reply_to(message, "Извините, у вас нет доступа к этому боту.")
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    if message.text.startswith(('http://', 'https://')):
-        logger.info(f"Получена ссылка от пользователя {message.from_user.id}: {message.text}")
-        source = detect_source(message.text)
-        if source:
-            user_data[message.chat.id] = {'url': message.text, 'source': source}
-            bot.reply_to(message, f"Обнаружен сервис: {source}.\nВыберите формат для сохранения:", reply_markup=format_keyboard())
+    if str(message.from_user.username) in ALLOWED_USERS:
+        if message.text.startswith(('http://', 'https://')):
+            logger.info(f"Получена ссылка от пользователя {message.from_user.username}: {message.text}")
+            source = detect_source(message.text)
+            if source:
+                user_data[message.chat.id] = {'url': message.text, 'source': source}
+                bot.reply_to(message, f"Обнаружен сервис: {source}.\nВыберите формат для сохранения:", reply_markup=format_keyboard())
+            else:
+                bot.reply_to(message, "Извините, я не могу определить источник по этой ссылке. Пожалуйста, убедитесь, что вы отправили корректную ссылку на YouTube или Spotify.")
         else:
-            bot.reply_to(message, "Извините, я не могу определить источник по этой ссылке. Пожалуйста, убедитесь, что вы отправили корректную ссылку на YouTube или Spotify.")
+            bot.reply_to(message, "Пожалуйста, отправьте ссылку на видео или аудио.")
     else:
-        bot.reply_to(message, "Пожалуйста, отправьте ссылку на видео или аудио.")
+        bot.reply_to(message, "Извините, у вас нет доступа к этому боту.")
 
 def detect_source(url):
     youtube_patterns = [r'(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/']
@@ -179,7 +186,7 @@ def get_available_qualities(url):
 def download_youtube(url, file_format, quality):
     try:
         random_string = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-        output_template = os.path.join(DOWNLOAD_FOLDER, f'%(title)s_{random_string}_DownVot_{quality}.%(ext)s')
+        output_template = os.path.join(DOWNLOAD_FOLDER, f'%(title)s {random_string}.%(ext)s')
 
         if file_format.lower() == 'аудио':
             ydl_opts = {
@@ -198,11 +205,11 @@ def download_youtube(url, file_format, quality):
                 'merge_output_format': 'mp4',
             }
 
-            if PROXY:
-                ydl_opts['proxy'] = PROXY
-                logger.info(f"Используется прокси: {PROXY}")
-            else:
-                logger.info("Прокси не используется")
+        if PROXY:
+            ydl_opts['proxy'] = PROXY
+            logger.info(f"Используется прокси: {PROXY}")
+        else:
+            logger.info("Прокси не используется")
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
@@ -212,8 +219,15 @@ def download_youtube(url, file_format, quality):
             else:
                 filename = filename.rsplit('.', 1)[0] + '.mp4'
 
-        clean_name = re.sub(r'[^a-zA-Z0-9_.]', '', os.path.basename(filename))
+        clean_name = re.sub(r'[^a-zA-Z0-9_. ]', '', os.path.basename(filename)[:-13])
         clean_name = re.sub(r'\s+', '_', clean_name)
+        if len(clean_name) >= 46:
+            clean_name = clean_name[:46]
+        clean_name += f'_DownVot_{quality}'
+
+        if file_format.lower() == 'аудио': clean_name += '.mp3'
+        else: clean_name += '.mp4'
+
         new_filename = os.path.join(os.path.dirname(filename), clean_name)
         os.rename(filename, new_filename)
 
