@@ -160,6 +160,14 @@ def download_file(url, source, file_format, quality):
 
 def get_available_qualities(url):
     ydl_opts = {'quiet': True, 'no_warnings': True}
+
+    if PROXY_CONFIG['URL']:
+        proxy_url = f"{PROXY_CONFIG['TYPE']}://{PROXY_CONFIG['URL']}"
+        ydl_opts['proxy'] = proxy_url
+        logger.info(f"Используется прокси: {proxy_url}")
+    else:
+        logger.info("Прокси не используется")
+    
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
         formats = info['formats']
