@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 with open('config.json') as config_file:
     config = json.load(config_file)
     BOT_TOKEN = config['BOT_TOKEN']
-    PROXY_CONFIG = config['PROXY']
+    PROXY = config['PROXY']
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -161,10 +161,9 @@ def download_file(url, source, file_format, quality):
 def get_available_qualities(url):
     ydl_opts = {'quiet': True, 'no_warnings': True}
 
-    if PROXY_CONFIG['URL']:
-        proxy_url = f"{PROXY_CONFIG['TYPE']}://{PROXY_CONFIG['URL']}"
-        ydl_opts['proxy'] = proxy_url
-        logger.info(f"Используется прокси: {proxy_url}")
+    if PROXY:
+        ydl_opts['proxy'] = PROXY
+        logger.info(f"Используется прокси: {PROXY}")
     else:
         logger.info("Прокси не используется")
     
@@ -199,10 +198,9 @@ def download_youtube(url, file_format, quality):
                 'merge_output_format': 'mp4',
             }
 
-            if PROXY_CONFIG['URL']:
-                proxy_url = f"{PROXY_CONFIG['TYPE']}://{PROXY_CONFIG['URL']}"
-                ydl_opts['proxy'] = proxy_url
-                logger.info(f"Используется прокси: {proxy_url}")
+            if PROXY:
+                ydl_opts['proxy'] = PROXY
+                logger.info(f"Используется прокси: {PROXY}")
             else:
                 logger.info("Прокси не используется")
 
