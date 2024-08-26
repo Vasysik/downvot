@@ -244,6 +244,8 @@ def process_request(chat_id):
 
                 if file_size > max_file_size:
                     bot.send_message(chat_id, f"Файл слишком большой для отправки, вот ваша ссылка на файл: {file_url}")
+
+                    break
                 else:
                     filename = re.sub(r'[^a-zA-Zа-яА-ЯёЁ0-9;_. ]', '', info['title'][:-13])
                     filename = re.sub(r'\s+', '_', filename) + f'_DownVot'
