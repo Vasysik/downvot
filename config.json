@@ -1,5 +1,5 @@
 {
-    "BOT_TOKEN": "",
-    "ALLOWED_USERS": ["wasys"],
-    "PROXY": ""
+    "BOT_TOKEN": "<your-telegram-bot-token>",
+    "API_BASE_URL": "<yt-dlp-host-url>",
+    "ALLOWED_USERS": {"<telegram-username>": "<yt-dlp-host-user-key>"}
 }
