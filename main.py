@@ -45,6 +45,13 @@ def quality_keyboard(available_qualities):
         keyboard.row(*row)
     return keyboard
 
+def detect_source(url):
+    youtube_patterns = [r'(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/']
+    for pattern in youtube_patterns:
+        if re.search(pattern, url):
+            return 'YouTube'    
+    return None
+
 def authorized_users_only(func):
     @wraps(func)
     def wrapper(message):
@@ -149,11 +156,15 @@ def delete_key_step(message):
 @authorized_users_only
 def handle_message(message):
     if message.text.startswith(('http://', 'https://')):
-        logger.info(f"Получена ссылка от пользователя {message.from_user.username}: {message.text}")
-        user_data[message.chat.id] = {'url': message.text, 'username': message.from_user.username}
-        bot.reply_to(message, "Выберите формат для сохранения:", reply_markup=format_keyboard())
+        source = detect_source(message.text)
+        if source:
+            logger.info(f"Получена ссылка от пользователя {message.from_user.username}: {message.text}")
+            user_data[message.chat.id] = {'url': message.text, 'username': message.from_user.username, 'source': source}
+            bot.reply_to(message, f"Обнаружен сервис: {source}.\nВыберите формат для сохранения:", reply_markup=format_keyboard())
+        else:
+            bot.reply_to(message, "Извините, я не могу определить источник по этой ссылке.\nПожалуйста, убедитесь, что вы отправили корректную ссылку.")
     else:
-        bot.reply_to(message, "Пожалуйста, отправьте ссылку на YouTube видео.")
+        bot.reply_to(message, "Пожалуйста, отправьте ссылку на видео.")
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
@@ -166,17 +177,17 @@ def callback_query(call):
         try:
             info = get_info(user_data[chat_id]['url'], user_data[chat_id]['username'], '?qualities&title')
             user_data[chat_id]['file_info'] = info
+            if user_data[chat_id]['format'] == 'video':
+                available_qualities = info['qualities']
+                user_data[chat_id]['available_qualities'] = available_qualities
+                bot.edit_message_text("Выберите качество видео:", chat_id, call.message.message_id, reply_markup=quality_keyboard(available_qualities))  
+            else:
+                message = bot.edit_message_text("Начинаю обработку запроса.\nПожалуйста, подождите.", chat_id, call.message.message_id)
+                user_data[chat_id]['processing_message_id'] = message.message_id
+                process_request(chat_id)
         except Exception as e:
             logger.error(f"Ошибка при получении информации о видео: {str(e)}")
             bot.edit_message_text("Произошла ошибка при получении информации о видео.\nПожалуйста, попробуйте еще раз.", chat_id, call.message.message_id)
-        if user_data[chat_id]['format'] == 'video':
-            available_qualities = info['qualities']
-            user_data[chat_id]['available_qualities'] = available_qualities
-            bot.edit_message_text("Выберите качество видео:", chat_id, call.message.message_id, reply_markup=quality_keyboard(available_qualities))  
-        else:
-            message = bot.edit_message_text("Начинаю обработку запроса.\nПожалуйста, подождите.", chat_id, call.message.message_id)
-            user_data[chat_id]['processing_message_id'] = message.message_id
-            process_request(chat_id)
     elif call.data.startswith("quality_"):
         user_data[chat_id]['quality'] = call.data.split("_")[1]
         message = bot.edit_message_text("Начинаю обработку запроса.\nПожалуйста, подождите.", chat_id, call.message.message_id)
