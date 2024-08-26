@@ -258,9 +258,8 @@ def process_request(chat_id):
 
                     break
                 else:
-                    filename = re.sub(r'[^a-zA-Zа-яА-ЯёЁ0-9;_. ]', '', info['title'][:-13])
+                    filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'])
                     filename = re.sub(r'\s+', '_', filename) + f'_DownVot'
-
                     if file_format == 'video': filename += f'_{quality}.mp4'
                     else: filename += '.mp3'
 
