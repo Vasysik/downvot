@@ -1,30 +1,25 @@
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+import requests
 import json
 import os
 import logging
-import random
-import string
-import requests
-import re
-import yt_dlp
+import time
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Загрузка конфигурации
 with open('config.json') as config_file:
     config = json.load(config_file)
     BOT_TOKEN = config['BOT_TOKEN']
+    API_BASE_URL = config['API_BASE_URL']
     ALLOWED_USERS = config['ALLOWED_USERS']
-    PROXY = config['PROXY']
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
 user_data = {}
-
-DOWNLOAD_FOLDER = 'downloads'
-if not os.path.exists(DOWNLOAD_FOLDER):
-    os.makedirs(DOWNLOAD_FOLDER)
 
 def format_keyboard():
     keyboard = InlineKeyboardMarkup()
@@ -46,51 +41,35 @@ def quality_keyboard(available_qualities):
 
 @bot.message_handler(commands=['start'])
 def start_message(message):
-    if str(message.from_user.username) in ALLOWED_USERS:
-        logger.info(f"Пользователь {message.from_user.username} запустил бота")
-        bot.reply_to(message, "Здравствуйте. Я бот для загрузки медиафайлов. Пожалуйста, отправьте ссылку на видео или аудио.")
+    username = str(message.from_user.username)
+    if username in ALLOWED_USERS:
+        logger.info(f"Пользователь {username} запустил бота")
+        bot.reply_to(message, "Здравствуйте. Я бот для загрузки медиафайлов. Пожалуйста, отправьте ссылку на YouTube видео.")
     else:
         bot.reply_to(message, "Извините, у вас нет доступа к этому боту.")
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    if str(message.from_user.username) in ALLOWED_USERS:
+    username = str(message.from_user.username)
+    if username in ALLOWED_USERS:
         if message.text.startswith(('http://', 'https://')):
-            logger.info(f"Получена ссылка от пользователя {message.from_user.username}: {message.text}")
-            source = detect_source(message.text)
-            if source:
-                user_data[message.chat.id] = {'url': message.text, 'source': source}
-                bot.reply_to(message, f"Обнаружен сервис: {source}.\nВыберите формат для сохранения:", reply_markup=format_keyboard())
-            else:
-                bot.reply_to(message, "Извините, я не могу определить источник по этой ссылке. Пожалуйста, убедитесь, что вы отправили корректную ссылку на YouTube или Spotify.")
+            logger.info(f"Получена ссылка от пользователя {username}: {message.text}")
+            user_data[message.chat.id] = {'url': message.text, 'username': username}
+            bot.reply_to(message, "Выберите формат для сохранения:", reply_markup=format_keyboard())
         else:
-            bot.reply_to(message, "Пожалуйста, отправьте ссылку на видео или аудио.")
+            bot.reply_to(message, "Пожалуйста, отправьте ссылку на YouTube видео.")
     else:
         bot.reply_to(message, "Извините, у вас нет доступа к этому боту.")
-
-def detect_source(url):
-    youtube_patterns = [r'(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/']
-    spotify_patterns = [r'(?:https?:\/\/)?(?:open\.)?spotify\.com\/']
-
-    for pattern in youtube_patterns:
-        if re.search(pattern, url):
-            return 'YouTube'
-    
-    for pattern in spotify_patterns:
-        if re.search(pattern, url):
-            return 'Spotify'
-    
-    return None
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     chat_id = call.message.chat.id
     if call.data.startswith("format_"):
-        user_data[chat_id]['format'] = 'видео' if call.data.split("_")[1] == 'video' else 'аудио'
-        if user_data[chat_id]['format'] == 'видео':
+        user_data[chat_id]['format'] = 'video' if call.data.split("_")[1] == 'video' else 'audio'
+        if user_data[chat_id]['format'] == 'video':
             bot.edit_message_text("Получение доступного качества. Пожалуйста, подождите.", chat_id, call.message.message_id)
             try:
-                available_qualities = get_available_qualities(user_data[chat_id]['url'])
+                available_qualities = get_available_qualities(user_data[chat_id]['url'], user_data[chat_id]['username'])
                 user_data[chat_id]['available_qualities'] = available_qualities
                 bot.edit_message_text("Выберите качество видео:", chat_id, call.message.message_id, reply_markup=quality_keyboard(available_qualities))
             except Exception as e:
@@ -106,45 +85,80 @@ def callback_query(call):
         user_data[chat_id]['processing_message_id'] = message.message_id
         process_request(chat_id)
 
+def get_available_qualities(url, username):
+    headers = {"X-API-Key": ALLOWED_USERS[username]}
+    try:
+        response = requests.post(f"{API_BASE_URL}/get_info", json={"url": url}, headers=headers)
+        response.raise_for_status()  # Это вызовет исключение для неуспешных статус-кодов
+        task_id = response.json()['task_id']
+        
+        while True:
+            status_response = requests.get(f"{API_BASE_URL}/status/{task_id}", headers=headers)
+            status_response.raise_for_status()
+            status_data = status_response.json()
+            
+            if status_data['status'] == 'completed':
+                file_path = status_data['file']
+                info_response = requests.get(f"{API_BASE_URL}{file_path}?qualities", headers=headers)
+                info_response.raise_for_status()
+                qualities = info_response.json()['qualities']
+                return qualities
+            elif status_data['status'] == 'failed':
+                raise Exception(f"Задача завершилась с ошибкой: {status_data.get('error', 'Неизвестная ошибка')}")
+            time.sleep(2)
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Ошибка при запросе к API: {str(e)}")
+        raise Exception(f"Ошибка при взаимодействии с API: {str(e)}")
+
 def process_request(chat_id):
     try:
         url = user_data[chat_id]['url']
-        source = user_data[chat_id]['source']
         file_format = user_data[chat_id]['format']
         quality = user_data[chat_id].get('quality', 'best')
+        username = user_data[chat_id]['username']
         
-        logger.info(f"Обработка запроса для пользователя {chat_id}: {source}, {file_format}, {quality}")
+        headers = {"X-API-Key": ALLOWED_USERS[username]}
+        data = {
+            "url": url,
+            "format": file_format,
+            "quality": quality
+        }
         
-        file_info = download_file(url, source, file_format, quality)
+        response = requests.post(f"{API_BASE_URL}/download", json=data, headers=headers)
+        response.raise_for_status()
+        task_id = response.json()['task_id']
+        bot.edit_message_text(f"Задача на загрузку создана. Ожидаем завершения...", chat_id, user_data[chat_id]['processing_message_id'])
         
-        if file_info:
-            temp_file_path = file_info
-            file_size = os.path.getsize(temp_file_path)
+        while True:
+            status_response = requests.get(f"{API_BASE_URL}/status/{task_id}", headers=headers)
+            status_response.raise_for_status()
+            status_data = status_response.json()
             
-            if file_size > 50 * 1024 * 1024:  # если файл больше 50 МБ
-                bot.send_message(chat_id, "Файл слишком большой для отправки. Попробуйте выбрать меньшее качество.")
-            else:
-                with open(temp_file_path, 'rb') as file:
-                    caption = "Ваше видео готово!" if file_format.lower() == 'видео' else "Ваше аудио готово!"
-                    try:
-                        if file_format.lower() == 'видео':
-                            bot.send_video(chat_id, file, caption=caption, supports_streaming=True, timeout=60)
-                        else:
-                            bot.send_audio(chat_id, file, caption=caption, timeout=60)
-                        logger.info(f"Файл успешно отправлен пользователю {chat_id}")
-                    except telebot.apihelper.ApiTelegramException as e:
-                        if "Request Entity Too Large" in str(e):
-                            bot.send_message(chat_id, "Файл слишком большой для отправки. Попробуйте выбрать меньшее качество.")
-                        else:
-                            raise
+            if status_data['status'] == 'completed':
+                file_path = status_data['file']
+                file_url = f"{API_BASE_URL}{file_path}"
+                file_response = requests.get(file_url, headers=headers)
+                file_response.raise_for_status()
+                
+                file_name = os.path.basename(file_path)
+                with open(file_name, 'wb') as f:
+                    f.write(file_response.content)
+                
+                with open(file_name, 'rb') as file:
+                    if file_format == 'video':
+                        bot.send_video(chat_id, file, caption="Ваше видео готово!", supports_streaming=True)
+                    else:
+                        bot.send_audio(chat_id, file, caption="Ваше аудио готово!")
+                
+                os.remove(file_name)
+                break
+            elif status_data['status'] == 'failed':
+                raise Exception(f"Задача завершилась с ошибкой: {status_data.get('error', 'Неизвестная ошибка')}")
             
-            os.remove(temp_file_path)
-        else:
-            logger.error(f"Ошибка при скачивании файла для пользователя {chat_id}")
-            bot.send_message(chat_id, "К сожалению, произошла ошибка при обработке запроса. Пожалуйста, попробуйте еще раз или проверьте корректность ссылки.")
+            time.sleep(2)
     except Exception as e:
         logger.error(f"Ошибка при обработке запроса для пользователя {chat_id}: {str(e)}")
-        bot.send_message(chat_id, f"Произошла ошибка при обработке запроса. Пожалуйста, попробуйте еще раз позже.")
+        bot.send_message(chat_id, f"Произошла ошибка при обработке запроса: {str(e)}")
     finally:
         if 'processing_message_id' in user_data.get(chat_id, {}):
             try:
@@ -156,90 +170,6 @@ def process_request(chat_id):
             del user_data[chat_id]
     
     bot.send_message(chat_id, "Если у вас есть еще запросы, пожалуйста, отправьте новую ссылку.")
-
-def download_file(url, source, file_format, quality):
-    if source == 'YouTube':
-        return download_youtube(url, file_format, quality)
-    elif source == 'Spotify':
-        return download_spotify(url, file_format)
-    else:
-        return None
-
-def get_available_qualities(url):
-    ydl_opts = {'quiet': True, 'no_warnings': True}
-
-    if PROXY:
-        ydl_opts['proxy'] = PROXY
-        logger.info(f"Используется прокси: {PROXY}")
-    else:
-        logger.info("Прокси не используется")
-    
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        formats = info['formats']
-        qualities = set()
-        for f in formats:
-            if f.get('height'):
-                qualities.add(f'{f["height"]}p')
-    return sorted(list(qualities), key=lambda x: int(x[:-1]))
-
-def download_youtube(url, file_format, quality):
-    try:
-        random_string = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-        output_template = os.path.join(DOWNLOAD_FOLDER, f'%(title)s {random_string}.%(ext)s')
-
-        if file_format.lower() == 'аудио':
-            ydl_opts = {
-                'format': 'bestaudio/best',
-                'outtmpl': output_template,
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
-                }],
-            }
-        else:
-            ydl_opts = {
-                'format': f'bestvideo[height<={quality[:-1]}]+bestaudio/best',
-                'outtmpl': output_template,
-                'merge_output_format': 'mp4',
-            }
-
-        if PROXY:
-            ydl_opts['proxy'] = PROXY
-            logger.info(f"Используется прокси: {PROXY}")
-        else:
-            logger.info("Прокси не используется")
-
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
-            if file_format.lower() == 'аудио':
-                filename = filename.rsplit('.', 1)[0] + '.mp3'
-            else:
-                filename = filename.rsplit('.', 1)[0] + '.mp4'
-
-        clean_name = re.sub(r'[^a-zA-Z0-9_. ]', '', os.path.basename(filename)[:-13])
-        clean_name = re.sub(r'\s+', '_', clean_name)
-        if len(clean_name) >= 46:
-            clean_name = clean_name[:46]
-        clean_name += f'_DownVot_{quality}'
-
-        if file_format.lower() == 'аудио': clean_name += '.mp3'
-        else: clean_name += '.mp4'
-
-        new_filename = os.path.join(os.path.dirname(filename), clean_name)
-        os.rename(filename, new_filename)
-
-        logger.info(f"Файл с YouTube успешно скачан: {new_filename}")
-        return new_filename
-    except Exception as e:
-        logger.error(f"Ошибка при скачивании с YouTube: {str(e)}")
-        raise
-
-def download_spotify(url, file_format):
-    logger.info(f"Попытка скачать с Spotify: {url} ({file_format})")
-    return None
 
 logger.info("Бот запущен")
 bot.polling(none_stop=True, timeout=120)
