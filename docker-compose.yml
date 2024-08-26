@@ -1,0 +1,5 @@
+services:
+  downvot:
+    build: .
+    volumes:
+      - ./config.json:/app/config.json

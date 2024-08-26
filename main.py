@@ -11,11 +11,17 @@ import re
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-with open('config.json') as config_file:
-    config = json.load(config_file)
-    BOT_TOKEN = config['BOT_TOKEN']
-    API_BASE_URL = config['API_BASE_URL']
-    ALLOWED_USERS = config['ALLOWED_USERS']
+def load_config():
+    with open('config.json', 'r') as config_file:
+        return json.load(config_file)
+
+def save_config(config):
+    with open('config.json', 'w') as config_file:
+        json.dump(config, config_file, indent=4)
+
+config = load_config()
+BOT_TOKEN = config['BOT_TOKEN']
+API_BASE_URL = config['API_BASE_URL']
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -43,7 +49,7 @@ def authorized_users_only(func):
     @wraps(func)
     def wrapper(message):
         username = str(message.from_user.username)
-        if username in ALLOWED_USERS:
+        if username in load_config()['ALLOWED_USERS']:
             return func(message)
         else:
             bot.reply_to(message, "Извините, у вас нет доступа к этому боту.")
@@ -60,14 +66,84 @@ def start_message(message):
 def admin_panel(message):
     username = str(message.from_user.username)
     logger.info(f"Пользователь {username} запустил админ панель")
-    headers = {"X-API-Key": ALLOWED_USERS[username]}
+    headers = {"X-API-Key": load_config()['ALLOWED_USERS'][username]}
     
     response = requests.post(f"{API_BASE_URL}/permissions_check", json={"permissions": ["admin"]}, headers=headers)
     
     if response.status_code == 200:
-        bot.reply_to(message, "Админ панель:")
+        keyboard = InlineKeyboardMarkup()
+        keyboard.row(InlineKeyboardButton("Список ключей", callback_data="admin_list_keys"))
+        keyboard.row(InlineKeyboardButton("Создать ключ", callback_data="admin_create_key"))
+        keyboard.row(InlineKeyboardButton("Удалить ключ", callback_data="admin_delete_key"))
+        bot.reply_to(message, "Админ панель:", reply_markup=keyboard)
     else:
         bot.reply_to(message, "Извините, у вас нет доступа к админ панели.")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("admin_"))
+def admin_callback_query(call):
+    chat_id = call.message.chat.id
+    username = str(call.from_user.username)
+
+    if call.data == "admin_list_keys":
+        config = load_config()
+        keys = config['ALLOWED_USERS']
+        key_list = "Список ключей:\n\n"
+        for user, key in keys.items():
+            key_list += f"Пользователь: {user}\n"
+            key_list += f"Ключ: <tg-spoiler>{key}</tg-spoiler>\n\n"
+        bot.send_message(chat_id, key_list, parse_mode='HTML')
+
+    elif call.data == "admin_create_key":
+        bot.send_message(chat_id, "Введите имя пользователя для нового ключа:")
+        bot.register_next_step_handler(call.message, create_key_step)
+
+    elif call.data == "admin_delete_key":
+        bot.send_message(chat_id, "Введите имя пользователя, чей ключ нужно удалить:")
+        bot.register_next_step_handler(call.message, delete_key_step)
+
+def create_key_step(message):
+    chat_id = message.chat.id
+    username = str(message.from_user.username)
+    new_key_username = message.text.strip()
+    
+    headers = {"X-API-Key": load_config()['ALLOWED_USERS'][username]}
+    data = {
+        'name': f"{new_key_username}-downbot",
+        'permissions': ["download", "get_info"]
+    }
+    
+    response = requests.post(f"{API_BASE_URL}/create_key", json=data, headers=headers)
+    
+    if response.status_code == 201:
+        new_key = response.json()['key']
+        bot.send_message(chat_id, f"Ключ создан успешно.\nПользователь: {new_key_username}\nНовый ключ: <tg-spoiler>{new_key}</tg-spoiler>", parse_mode='HTML')
+
+        config = load_config()
+        config['ALLOWED_USERS'][new_key_username] = new_key
+        save_config(config)
+    else:
+        bot.send_message(chat_id, "Не удалось создать ключ.")
+
+def delete_key_step(message):
+    chat_id = message.chat.id
+    username = str(message.from_user.username)
+    user_to_delete = message.text.strip()
+    
+    config = load_config()
+    if user_to_delete in config['ALLOWED_USERS']:
+        key_to_delete = config['ALLOWED_USERS'][user_to_delete]
+        headers = {"X-API-Key": config['ALLOWED_USERS'][username]}
+        
+        response = requests.delete(f"{API_BASE_URL}/delete_key/{user_to_delete}-downbot", headers=headers)
+        
+        if response.status_code == 200:
+            del config['ALLOWED_USERS'][user_to_delete]
+            save_config(config)
+            bot.send_message(chat_id, f"Ключ пользователя {user_to_delete} успешно удален.")
+        else:
+            bot.send_message(chat_id, f"Не удалось удалить ключ на сервере для пользователя {user_to_delete}.")
+    else:
+        bot.send_message(chat_id, f"Пользователь {user_to_delete} не найден в списке разрешенных пользователей.")
 
 @bot.message_handler(func=lambda message: True)
 @authorized_users_only
@@ -82,7 +158,9 @@ def handle_message(message):
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     chat_id = call.message.chat.id
-    if call.data.startswith("format_"):
+    if call.data.startswith("admin_"):
+        admin_callback_query(call)
+    elif call.data.startswith("format_"):
         user_data[chat_id]['format'] = 'video' if call.data.split("_")[1] == 'video' else 'audio'
         bot.edit_message_text("Получение информации о видео.\nПожалуйста, подождите.", chat_id, call.message.message_id)
         try:
@@ -106,7 +184,7 @@ def callback_query(call):
         process_request(chat_id)
 
 def get_info(url, username, args=''):
-    headers = {"X-API-Key": ALLOWED_USERS[username]}
+    headers = {"X-API-Key": load_config()['ALLOWED_USERS'][username]}
     try:
         response = requests.post(f"{API_BASE_URL}/get_info", json={"url": url}, headers=headers)
         response.raise_for_status()
@@ -137,7 +215,7 @@ def process_request(chat_id):
         username = user_data[chat_id]['username']
         info = user_data[chat_id]['file_info']
         
-        headers = {"X-API-Key": ALLOWED_USERS[username]}
+        headers = {"X-API-Key": load_config()['ALLOWED_USERS'][username]}
         data = {
             "url": url,
             "format": file_format,
