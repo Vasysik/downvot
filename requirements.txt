@@ -1,1 +1,2 @@
 telebot==0.0.5
+yt-dlp-host-api==0.0.3

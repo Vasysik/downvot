@@ -1,8 +1,9 @@
 from functools import wraps
-from config import save_config, load_config, API_BASE_URL
+from config import save_config, load_config
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from yt_dlp_host_api.exceptions import APIError
 from state import user_data, bot
-import logging, io, requests, re, time
+import logging, io, re
 
 logger = logging.getLogger(__name__)
 
@@ -22,30 +23,6 @@ def detect_source(url):
         if re.search(pattern, url):
             return 'YouTube'    
     return None
-
-def get_info(url, username, args=''):
-    headers = {"X-API-Key": load_config()['ALLOWED_USERS'][username]}
-    try:
-        response = requests.post(f"{API_BASE_URL}/get_info", json={"url": url}, headers=headers)
-        response.raise_for_status()
-        task_id = response.json()['task_id']
-        
-        while True:
-            status_response = requests.get(f"{API_BASE_URL}/status/{task_id}", headers=headers)
-            status_response.raise_for_status()
-            status_data = status_response.json()
-            
-            if status_data['status'] == 'completed':
-                file_path = status_data['file']
-                info_response = requests.get(f"{API_BASE_URL}{file_path}{args}", headers=headers)
-                info_response.raise_for_status()
-                return info_response.json()
-            elif status_data['status'] == 'error':
-                raise Exception(f"Задача завершилась с ошибкой: {status_data['error']}")
-            time.sleep(2)
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Ошибка при запросе к API: {str(e)}")
-        raise Exception(f"Ошибка при взаимодействии с API: {str(e)}")
     
 def process_request(chat_id):
     try:
@@ -54,59 +31,38 @@ def process_request(chat_id):
         quality = user_data[chat_id].get('quality', '360p')
         username = user_data[chat_id]['username']
         info = user_data[chat_id]['file_info']
+        client = user_data[chat_id]['client']
         
-        headers = {"X-API-Key": load_config()['ALLOWED_USERS'][username]}
-        data = {
-            "url": url,
-            "quality": quality
-        }
-        
-        response = requests.post(f"{API_BASE_URL}/get_{file_type}", json=data, headers=headers)
-        response.raise_for_status()
-        task_id = response.json()['task_id']
+        if file_type == 'video':
+            task = client.send_task.get_video(url=url, quality=quality)
+        else:
+            task = client.send_task.get_audio(url=url)
+
         bot.edit_message_text(f"Задача на загрузку создана.\nОжидаем завершения...", chat_id, user_data[chat_id]['processing_message_id'])
         
-        while True:
-            status_response = requests.get(f"{API_BASE_URL}/status/{task_id}", headers=headers)
-            status_response.raise_for_status()
-            status_data = status_response.json()
-            
-            if status_data['status'] == 'completed':
-                file_path = status_data['file']
-                file_url = f"{API_BASE_URL}{file_path}"
+        task_result = task.get_result()
+        file_obj = io.BytesIO(task_result.get_file())
 
-                file_response = requests.get(file_url, headers=headers, stream=True)
-                file_response.raise_for_status()
+        file_size = file_obj.getbuffer().nbytes
+        max_file_size = 50 * 1024 * 1024  # 50 MB
 
-                file_size = int(file_response.headers.get('content-length', -1))
-                max_file_size = 50 * 1024 * 1024  # 50 MB
+        if file_size > max_file_size:
+            file_url = task_result.get_file_url()
+            bot.send_message(chat_id, f"Файл слишком большой для отправки, вот ваша ссылка на файл:\n{file_url}")
+        else:
+            filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'])
+            filename = re.sub(r'\s+', '_', filename) + f'_DownVot'
+            if file_type == 'video': filename += f'_{quality}.mp4'
+            else: filename += '.mp3'
+            file_obj.name = filename
 
-                if file_size > max_file_size:
-                    bot.send_message(chat_id, f"Файл слишком большой для отправки, вот ваша ссылка на файл:\n{file_url}")
-
-                    break
-                else:
-                    filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'])
-                    filename = re.sub(r'\s+', '_', filename) + f'_DownVot'
-                    if file_type == 'video': filename += f'_{quality}.mp4'
-                    else: filename += '.mp3'
-
-                    file_obj = io.BytesIO(file_response.content)
-                    file_obj.name = filename
-
-                    if file_type == 'video':
-                        bot.send_video(chat_id, file_obj, caption="Ваше видео готово!", supports_streaming=True)
-                    else:
-                        bot.send_audio(chat_id, file_obj, caption="Ваше аудио готово!")
-                    
-                    break
-            elif status_data['status'] == 'error':
-                raise Exception(f"Задача завершилась с ошибкой: {status_data['error']}")
-            
-            time.sleep(2)
+            if file_type == 'video': bot.send_video(chat_id, file_obj, caption="Ваше видео готово!", supports_streaming=True)
+            else: bot.send_audio(chat_id, file_obj, caption="Ваше аудио готово!")
+    except APIError as e:
+        bot.send_message(chat_id, f"Произошла ошибка при обработке запроса:\n<code>{str(e)}</code>", parse_mode='HTML')
     except Exception as e:
         logger.error(f"Ошибка при обработке запроса для пользователя {chat_id}: {str(e)}")
-        bot.send_message(chat_id, f"Произошла ошибка при обработке запроса: {str(e)}")
+        bot.send_message(chat_id, f"Произошла ошибка при обработке запроса:\n<code>{str(e)}</code>", parse_mode='HTML')
     finally:
         if 'processing_message_id' in user_data.get(chat_id, {}):
             try:
@@ -120,48 +76,43 @@ def process_request(chat_id):
     bot.send_message(chat_id, "Если у вас есть еще запросы, пожалуйста, отправьте новую ссылку.")
 
 def create_key_step(message):
-    chat_id = message.chat.id
-    username = str(message.from_user.username)
-    new_key_username = message.text.strip()
-    
-    headers = {"X-API-Key": load_config()['ALLOWED_USERS'][username]}
-    data = {
-        'name': f"{new_key_username}-downbot",
-        'permissions': ["get_video", "get_audio", "get_info"]
-    }
-    
-    response = requests.post(f"{API_BASE_URL}/create_key", json=data, headers=headers)
-    
-    if response.status_code == 201:
-        new_key = response.json()['key']
-        bot.send_message(chat_id, f"Ключ создан успешно.\nПользователь: {new_key_username}\nНовый ключ: <tg-spoiler>{new_key}</tg-spoiler>", parse_mode='HTML')
+    try:
+        chat_id = message.chat.id
+        new_key_username = message.text.strip()
+        client = user_data[chat_id]['client']
+        new_key = client.admin.create_key(f"{new_key_username}-downbot", ["get_video", "get_audio", "get_info"])['key']
+        bot.send_message(chat_id, f"Ключ создан успешно.\nПользователь: <code>{new_key_username}</code>\nНовый ключ: <tg-spoiler>{new_key}</tg-spoiler>", parse_mode='HTML')
 
         config = load_config()
         config['ALLOWED_USERS'][new_key_username] = new_key
         save_config(config)
-    else:
-        bot.send_message(chat_id, "Не удалось создать ключ.")
+    except APIError as e:
+        bot.send_message(chat_id, f"Не удалось создать ключ.\nОшибка: <code>{str(e)}</code>", parse_mode='HTML')
+    except Exception as e:
+        logger.error(f"Ошибка при обработке запроса для пользователя {chat_id}: {str(e)}")
+        bot.send_message(chat_id, f"Произошла ошибка при обработке запроса:\n<code>{str(e)}</code>", parse_mode='HTML')
 
 def delete_key_step(message):
-    chat_id = message.chat.id
-    username = str(message.from_user.username)
-    user_to_delete = message.text.strip()
-    
-    config = load_config()
-    if user_to_delete in config['ALLOWED_USERS']:
-        key_to_delete = config['ALLOWED_USERS'][user_to_delete]
-        headers = {"X-API-Key": config['ALLOWED_USERS'][username]}
-        
-        response = requests.delete(f"{API_BASE_URL}/delete_key/{user_to_delete}-downbot", headers=headers)
-        
-        if response.status_code == 200:
-            del config['ALLOWED_USERS'][user_to_delete]
-            save_config(config)
-            bot.send_message(chat_id, f"Ключ пользователя {user_to_delete} успешно удален.")
+    try:
+        chat_id = message.chat.id
+        user_to_delete = message.text.strip()
+        client = user_data[chat_id]['client']
+
+        config = load_config()
+        if user_to_delete in config['ALLOWED_USERS']:
+            try:
+                client.admin.delete_key(f"{user_to_delete}-downbot")
+                del config['ALLOWED_USERS'][user_to_delete]
+                save_config(config)
+                
+                bot.send_message(chat_id, f"Ключ пользователя <code>{user_to_delete}</code> успешно удален.", parse_mode='HTML')
+            except APIError as e:
+                bot.send_message(chat_id, f"Не удалось удалить ключ на сервере для пользователя <code>{user_to_delete}</code>.\nОшибка: <code>{str(e)}</code>", parse_mode='HTML')
         else:
-            bot.send_message(chat_id, f"Не удалось удалить ключ на сервере для пользователя {user_to_delete}.")
-    else:
-        bot.send_message(chat_id, f"Пользователь {user_to_delete} не найден в списке разрешенных пользователей.")
+            bot.send_message(chat_id, f"Пользователь <code>{user_to_delete}</code> не найден в списке разрешенных пользователей.", parse_mode='HTML')
+    except Exception as e:
+        logger.error(f"Ошибка при обработке запроса для пользователя {chat_id}: {str(e)}")
+        bot.send_message(chat_id, f"Произошла ошибка при обработке запроса:\n<code>{str(e)}</code>", parse_mode='HTML')
 
 def type_keyboard():
     keyboard = InlineKeyboardMarkup()
