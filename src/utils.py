@@ -62,7 +62,7 @@ def process_request(chat_id):
             "quality": quality
         }
         
-        response = requests.post(f"{API_BASE_URL}/download", json=data, headers=headers)
+        response = requests.post(f"{API_BASE_URL}/get_video", json=data, headers=headers)
         response.raise_for_status()
         task_id = response.json()['task_id']
         bot.edit_message_text(f"Задача на загрузку создана.\nОжидаем завершения...", chat_id, user_data[chat_id]['processing_message_id'])
@@ -83,7 +83,7 @@ def process_request(chat_id):
                 max_file_size = 50 * 1024 * 1024  # 50 MB
 
                 if file_size > max_file_size:
-                    bot.send_message(chat_id, f"Файл слишком большой для отправки, вот ваша ссылка на файл: {file_url}")
+                    bot.send_message(chat_id, f"Файл слишком большой для отправки, вот ваша ссылка на файл:\n{file_url}")
 
                     break
                 else:
@@ -128,7 +128,7 @@ def create_key_step(message):
     headers = {"X-API-Key": load_config()['ALLOWED_USERS'][username]}
     data = {
         'name': f"{new_key_username}-downbot",
-        'permissions': ["download", "get_info"]
+        'permissions': ["get_video", "get_info"]
     }
     
     response = requests.post(f"{API_BASE_URL}/create_key", json=data, headers=headers)
