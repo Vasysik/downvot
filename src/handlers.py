@@ -55,7 +55,7 @@ def register_handlers(bot):
             if source:
                 logger.info(f"Получена ссылка от пользователя {message.from_user.username}: {message.text}")
                 user_data[message.chat.id] = {'url': message.text, 'username': message.from_user.username, 'source': source}
-                bot.reply_to(message, f"Обнаружен сервис: {source}.\nВыберите формат для сохранения:", reply_markup=utils.format_keyboard())
+                bot.reply_to(message, f"Обнаружен сервис: {source}.\nВыберите формат для сохранения:", reply_markup=utils.type_keyboard())
             else:
                 bot.reply_to(message, "Извините, я не могу определить источник по этой ссылке.\nПожалуйста, убедитесь, что вы отправили корректную ссылку.")
         else:
@@ -66,13 +66,13 @@ def register_handlers(bot):
         chat_id = call.message.chat.id
         if call.data.startswith("admin_"):
             admin_callback_query(call)
-        elif call.data.startswith("format_"):
-            user_data[chat_id]['format'] = 'video' if call.data.split("_")[1] == 'video' else 'audio'
+        elif call.data.startswith("type_"):
+            user_data[chat_id]['type'] = 'video' if call.data.split("_")[1] == 'video' else 'audio'
             bot.edit_message_text("Получение информации о видео.\nПожалуйста, подождите.", chat_id, call.message.message_id)
             try:
                 info = utils.get_info(user_data[chat_id]['url'], user_data[chat_id]['username'], '?qualities&title')
                 user_data[chat_id]['file_info'] = info
-                if user_data[chat_id]['format'] == 'video':
+                if user_data[chat_id]['type'] == 'video':
                     available_qualities = info['qualities']
                     user_data[chat_id]['available_qualities'] = available_qualities
                     bot.edit_message_text("Выберите качество видео:", chat_id, call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities))  

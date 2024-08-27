@@ -50,7 +50,7 @@ def get_info(url, username, args=''):
 def process_request(chat_id):
     try:
         url = user_data[chat_id]['url']
-        file_format = user_data[chat_id]['format']
+        file_type = user_data[chat_id]['type']
         quality = user_data[chat_id].get('quality', '360p')
         username = user_data[chat_id]['username']
         info = user_data[chat_id]['file_info']
@@ -58,7 +58,7 @@ def process_request(chat_id):
         headers = {"X-API-Key": load_config()['ALLOWED_USERS'][username]}
         data = {
             "url": url,
-            "format": file_format,
+            "type": file_type,
             "quality": quality
         }
         
@@ -89,13 +89,13 @@ def process_request(chat_id):
                 else:
                     filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'])
                     filename = re.sub(r'\s+', '_', filename) + f'_DownVot'
-                    if file_format == 'video': filename += f'_{quality}.mp4'
+                    if file_type == 'video': filename += f'_{quality}.mp4'
                     else: filename += '.mp3'
 
                     file_obj = io.BytesIO(file_response.content)
                     file_obj.name = filename
 
-                    if file_format == 'video':
+                    if file_type == 'video':
                         bot.send_video(chat_id, file_obj, caption="Ваше видео готово!", supports_streaming=True)
                     else:
                         bot.send_audio(chat_id, file_obj, caption="Ваше аудио готово!")
@@ -164,10 +164,10 @@ def delete_key_step(message):
     else:
         bot.send_message(chat_id, f"Пользователь {user_to_delete} не найден в списке разрешенных пользователей.")
 
-def format_keyboard():
+def type_keyboard():
     keyboard = InlineKeyboardMarkup()
-    keyboard.row(InlineKeyboardButton("Видео", callback_data="format_video"),
-                 InlineKeyboardButton("Аудио", callback_data="format_audio"))
+    keyboard.row(InlineKeyboardButton("Видео", callback_data="type_video"),
+                 InlineKeyboardButton("Аудио", callback_data="type_audio"))
     return keyboard
 
 def quality_keyboard(available_qualities):
