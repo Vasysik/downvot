@@ -127,7 +127,7 @@ def create_key_step(message):
     headers = {"X-API-Key": load_config()['ALLOWED_USERS'][username]}
     data = {
         'name': f"{new_key_username}-downbot",
-        'permissions': ["get_video", "get_info"]
+        'permissions': ["get_video", "get_audio", "get_info"]
     }
     
     response = requests.post(f"{API_BASE_URL}/create_key", json=data, headers=headers)
