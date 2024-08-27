@@ -58,11 +58,10 @@ def process_request(chat_id):
         headers = {"X-API-Key": load_config()['ALLOWED_USERS'][username]}
         data = {
             "url": url,
-            "file_type": file_type,
             "quality": quality
         }
         
-        response = requests.post(f"{API_BASE_URL}/get_video", json=data, headers=headers)
+        response = requests.post(f"{API_BASE_URL}/get_{file_type}", json=data, headers=headers)
         response.raise_for_status()
         task_id = response.json()['task_id']
         bot.edit_message_text(f"Задача на загрузку создана.\nОжидаем завершения...", chat_id, user_data[chat_id]['processing_message_id'])
