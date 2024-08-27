@@ -50,7 +50,7 @@ def get_info(url, username, args=''):
 def process_request(chat_id):
     try:
         url = user_data[chat_id]['url']
-        file_type = user_data[chat_id]['type']
+        file_type = user_data[chat_id]['file_type']
         quality = user_data[chat_id].get('quality', '360p')
         username = user_data[chat_id]['username']
         info = user_data[chat_id]['file_info']
@@ -58,7 +58,7 @@ def process_request(chat_id):
         headers = {"X-API-Key": load_config()['ALLOWED_USERS'][username]}
         data = {
             "url": url,
-            "type": file_type,
+            "file_type": file_type,
             "quality": quality
         }
         

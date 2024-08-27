@@ -67,12 +67,12 @@ def register_handlers(bot):
         if call.data.startswith("admin_"):
             admin_callback_query(call)
         elif call.data.startswith("type_"):
-            user_data[chat_id]['type'] = 'video' if call.data.split("_")[1] == 'video' else 'audio'
+            user_data[chat_id]['file_type'] = 'video' if call.data.split("_")[1] == 'video' else 'audio'
             bot.edit_message_text("Получение информации о видео.\nПожалуйста, подождите.", chat_id, call.message.message_id)
             try:
                 info = utils.get_info(user_data[chat_id]['url'], user_data[chat_id]['username'], '?qualities&title')
                 user_data[chat_id]['file_info'] = info
-                if user_data[chat_id]['type'] == 'video':
+                if user_data[chat_id]['file_type'] == 'video':
                     available_qualities = info['qualities']
                     user_data[chat_id]['available_qualities'] = available_qualities
                     bot.edit_message_text("Выберите качество видео:", chat_id, call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities))  
