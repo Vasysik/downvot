@@ -1,5 +1,4 @@
-from config import load_config
-from state import user_data, api
+from state import user_data
 import utils, logging
 
 logger = logging.getLogger(__name__)
@@ -15,11 +14,9 @@ def register_handlers(bot):
     @utils.authorized_users_only
     def admin_panel(message):
         logger.info(f"Пользователь {message.from_user.username} запросил админ панель")
-        user_data[message.chat.id] = {'username': message.from_user.username}
-        user_data[message.chat.id]['client'] = api.get_client(load_config()['ALLOWED_USERS'][message.from_user.username])
         client = user_data[message.chat.id]['client']
         
-        if client.check_permissions(['admin']):
+        if client.check_permissions(["create_key", "delete_key", "get_key", "get_keys"]):
             bot.reply_to(message, "Админ панель:", reply_markup=utils.admin_keyboard())
         else:
             bot.reply_to(message, "Извините, у вас нет доступа к админ панели.")
@@ -28,11 +25,9 @@ def register_handlers(bot):
     @utils.authorized_users_only
     def create_key(message):
         logger.info(f"Пользователь {message.from_user.username} запросил создание ключа")
-        user_data[message.chat.id] = {'username': message.from_user.username}
-        user_data[message.chat.id]['client'] = api.get_client(load_config()['ALLOWED_USERS'][message.from_user.username])
         client = user_data[message.chat.id]['client']
         
-        if client.check_permissions(['admin']):
+        if client.check_permissions(["create_key"]):
             bot.reply_to(message, "Введите имя пользователя для нового ключа:")
             bot.register_next_step_handler(message, utils.create_key_step)
         else:
@@ -42,36 +37,35 @@ def register_handlers(bot):
     @utils.authorized_users_only
     def delete_key(message):
         logger.info(f"Пользователь {message.from_user.username} запросил удаление ключа")
-        user_data[message.chat.id] = {'username': message.from_user.username}
-        user_data[message.chat.id]['client'] = api.get_client(load_config()['ALLOWED_USERS'][message.from_user.username])
         client = user_data[message.chat.id]['client']
         
-        if client.check_permissions(['admin']):
+        if client.check_permissions(["delete_key"]):
             bot.reply_to(message, "Введите имя пользователя, чей ключ нужно удалить:")
             bot.register_next_step_handler(message, utils.delete_key_step)
         else:
             bot.reply_to(message, "Извините, у вас нет доступа к удалению ключей.")
     
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_"))
+    @utils.authorized_users_only
     def admin_callback_query(call):
-        chat_id = call.message.chat.id
+        try:
+            chat_id = call.message.chat.id
 
-        if call.data == "admin_list_keys":
-            config = load_config()
-            keys = config['ALLOWED_USERS']
-            key_list = "Список ключей:\n\n"
-            for user, key in keys.items():
-                key_list += f"Пользователь: <code>{user}</code>\n"
-                key_list += f"Ключ: <tg-spoiler>{key}</tg-spoiler>\n\n"
-            bot.edit_message_text(key_list, chat_id, call.message.message_id, parse_mode='HTML')
+            # Unsafe
+            # if call.data == "admin_list_keys":
+            #     bot.edit_message_text(utils.list_keys(call.message), chat_id, call.message.message_id, parse_mode='HTML')
 
-        elif call.data == "admin_create_key":
-            bot.edit_message_text("Введите имя пользователя для нового ключа:", chat_id, call.message.message_id)
-            bot.register_next_step_handler(call.message, utils.create_key_step)
+            if call.data == "admin_create_key":
+                bot.edit_message_text("Введите имя пользователя для нового ключа:", chat_id, call.message.message_id)
+                bot.register_next_step_handler(call.message, utils.create_key_step)
 
-        elif call.data == "admin_delete_key":
-            bot.edit_message_text("Введите имя пользователя, чей ключ нужно удалить:", chat_id, call.message.message_id)
-            bot.register_next_step_handler(call.message, utils.delete_key_step)
+            elif call.data == "admin_delete_key":
+                bot.edit_message_text("Введите имя пользователя, чей ключ нужно удалить:", chat_id, call.message.message_id)
+                bot.register_next_step_handler(call.message, utils.delete_key_step)
+        except Exception as e:
+            logger.error(f"Ошибка при обработке запроса для пользователя {chat_id}: {str(e)}")
+            bot.send_message(chat_id, f"Произошла ошибка при обработке запроса:\n<code>{str(e)}</code>", parse_mode='HTML')
+        
 
     @bot.message_handler(func=lambda message: True)
     @utils.authorized_users_only
@@ -80,8 +74,8 @@ def register_handlers(bot):
             source = utils.detect_source(message.text)
             if source:
                 logger.info(f"Получена ссылка от пользователя {message.from_user.username}: {message.text}")
-                user_data[message.chat.id] = {'url': message.text, 'username': message.from_user.username, 'source': source}
-                user_data[message.chat.id]['client'] = api.get_client(load_config()['ALLOWED_USERS'][message.from_user.username])
+                user_data[message.chat.id]['url'] = message.text
+                user_data[message.chat.id]['source'] = source
 
                 bot.reply_to(message, f"Обнаружен сервис: {source}.\nВыберите формат для сохранения:", reply_markup=utils.type_keyboard())
             else:
@@ -90,6 +84,7 @@ def register_handlers(bot):
             bot.reply_to(message, "Пожалуйста, отправьте ссылку на видео.")
 
     @bot.callback_query_handler(func=lambda call: True)
+    @utils.authorized_users_only
     def callback_query(call):
         chat_id = call.message.chat.id
         if call.data.startswith("admin_"):

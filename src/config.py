@@ -14,3 +14,6 @@ def save_config(config):
 config = load_config()
 BOT_TOKEN = config['BOT_TOKEN']
 API_BASE_URL = config['API_BASE_URL']
+ADMIN_API_KEY = config['ADMIN_API_KEY']
+AUTO_CREATE_KEY = config['AUTO_CREATE_KEY']
+AUTO_ALLOWED_CHANNEL = config['AUTO_ALLOWED_CHANNEL']

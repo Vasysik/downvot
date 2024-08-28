@@ -1,8 +1,8 @@
 from functools import wraps
-from config import save_config, load_config
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from config import load_config, AUTO_CREATE_KEY, AUTO_ALLOWED_CHANNEL
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
 from yt_dlp_host_api.exceptions import APIError
-from state import user_data, bot
+from state import user_data, bot, admin, api
 import logging, io, re
 
 logger = logging.getLogger(__name__)
@@ -10,9 +10,51 @@ logger = logging.getLogger(__name__)
 def authorized_users_only(func):
     @wraps(func)
     def wrapper(message):
+        if isinstance(message, Message):
+            username = str(message.from_user.username)
+            chat_id = message.chat.id
+        elif isinstance(message, CallbackQuery):
+            username = str(message.from_user.username)
+            chat_id = message.message.chat.id
+        else:
+            return
+        
         username = str(message.from_user.username)
-        if username in load_config()['ALLOWED_USERS']:
-            return func(message)
+        if username in load_config()['ALLOWED_USERS'] or AUTO_ALLOWED_CHANNEL:
+            try:
+                if chat_id not in user_data: user_data[chat_id] = {}
+                user_data[chat_id]['username'] = message.from_user.username
+                user_data[chat_id]['client'] = api.get_client(admin.get_key(f'{message.from_user.username}_downvot'))
+                if AUTO_ALLOWED_CHANNEL:
+                    try:
+                        member = bot.get_chat_member(chat_id=AUTO_ALLOWED_CHANNEL, user_id=message.from_user.id)
+                        if member.status in ['member', 'administrator', 'creator']:
+                            return func(message)
+                        else:
+                            bot.reply_to(message, f"Для использования бота вам необходимо быть подписанным на канал: {AUTO_ALLOWED_CHANNEL}")
+                    except Exception as e:
+                        bot.reply_to(message, f"Произошла ошибка при проверке членства в канале:\n<code>{str(e)}</code>", parse_mode='HTML')
+                else: return func(message)
+            except APIError as e:
+                if AUTO_CREATE_KEY:
+                    bot.reply_to(message, f"К сожалению, ваш ключ не найден на сервере.\nЯ создам для вас новый ключ.", parse_mode='HTML')
+                    try:
+                        admin.create_key(f'{message.from_user.username}_downvot', ["get_video", "get_audio", "get_info"])
+                        bot.send_message(chat_id, f"Новый ключ создан успешно!", parse_mode='HTML')
+                        if AUTO_ALLOWED_CHANNEL:
+                            try:
+                                member = bot.get_chat_member(chat_id=AUTO_ALLOWED_CHANNEL, user_id=message.from_user.id)
+                                if member.status in ['member', 'administrator', 'creator']:
+                                    return func(message)
+                                else:
+                                    bot.reply_to(message, f"Для использования бота вам необходимо быть подписанным на канал: {AUTO_ALLOWED_CHANNEL}")
+                            except Exception as e:
+                                bot.reply_to(message, f"Произошла ошибка при проверке членства в канале:\n<code>{str(e)}</code>", parse_mode='HTML')
+                        else: return func(message)
+                    except APIError as e:
+                        bot.send_message(chat_id, f"Произошла ошибка при создании ключа:\n<code>{str(e)}</code>", parse_mode='HTML')
+                else:
+                    bot.reply_to(message, f"Произошла ошибка при инициализации клиента:\n<code>{str(e)}</code>", parse_mode='HTML')
         else:
             bot.reply_to(message, "Извините, у вас нет доступа к этому боту.")
     return wrapper
@@ -75,17 +117,36 @@ def process_request(chat_id):
     
     bot.send_message(chat_id, "Если у вас есть еще запросы, пожалуйста, отправьте новую ссылку.")
 
+# Unsafe
+# def list_keys(message):
+#     try:
+#         chat_id = message.chat.id
+#         client = user_data[chat_id]['client']
+#         keys = client.get_keys()
+#         key_list = "Список ключей:\n\n"
+#         for user, data in keys.items():
+#             key_list += f"Пользователь: <code>{user}</code>\n"
+#             key_list += f"Ключ: <tg-spoiler>{data['key']}</tg-spoiler>\n"
+#             key_list += f"Права: {data['permissions']}\n\n"
+#         return key_list
+#     except APIError as e:
+#         bot.send_message(chat_id, f"Не получить список ключей.\nОшибка: <code>{str(e)}</code>", parse_mode='HTML')
+#     except Exception as e:
+#         logger.error(f"Ошибка при обработке запроса для пользователя {chat_id}: {str(e)}")
+#         bot.send_message(chat_id, f"Произошла ошибка при обработке запроса:\n<code>{str(e)}</code>", parse_mode='HTML')
+
 def create_key_step(message):
     try:
         chat_id = message.chat.id
-        new_key_username = message.text.strip()
+        input_text = message.text.strip()
+        parts = input_text.split()
         client = user_data[chat_id]['client']
-        new_key = client.admin.create_key(f"{new_key_username}-downbot", ["get_video", "get_audio", "get_info"])['key']
-        bot.send_message(chat_id, f"Ключ создан успешно.\nПользователь: <code>{new_key_username}</code>\nНовый ключ: <tg-spoiler>{new_key}</tg-spoiler>", parse_mode='HTML')
 
-        config = load_config()
-        config['ALLOWED_USERS'][new_key_username] = new_key
-        save_config(config)
+        new_key_username = parts[0]
+        permissions = parts[1:] if len(parts) > 1 else ["get_video", "get_audio", "get_info"]
+
+        new_key = client.create_key(f"{new_key_username}", permissions)
+        bot.send_message(chat_id, f"Ключ создан успешно.\nПользователь: <code>{new_key_username}</code>\nНовый ключ: <tg-spoiler>{new_key}</tg-spoiler>\nПрава: {permissions}", parse_mode='HTML')
     except APIError as e:
         bot.send_message(chat_id, f"Не удалось создать ключ.\nОшибка: <code>{str(e)}</code>", parse_mode='HTML')
     except Exception as e:
@@ -97,19 +158,11 @@ def delete_key_step(message):
         chat_id = message.chat.id
         user_to_delete = message.text.strip()
         client = user_data[chat_id]['client']
-
-        config = load_config()
-        if user_to_delete in config['ALLOWED_USERS']:
-            try:
-                client.admin.delete_key(f"{user_to_delete}-downbot")
-                del config['ALLOWED_USERS'][user_to_delete]
-                save_config(config)
-                
-                bot.send_message(chat_id, f"Ключ пользователя <code>{user_to_delete}</code> успешно удален.", parse_mode='HTML')
-            except APIError as e:
-                bot.send_message(chat_id, f"Не удалось удалить ключ на сервере для пользователя <code>{user_to_delete}</code>.\nОшибка: <code>{str(e)}</code>", parse_mode='HTML')
-        else:
-            bot.send_message(chat_id, f"Пользователь <code>{user_to_delete}</code> не найден в списке разрешенных пользователей.", parse_mode='HTML')
+        try:
+            client.delete_key(f"{user_to_delete}")
+            bot.send_message(chat_id, f"Ключ пользователя <code>{user_to_delete}</code> успешно удален.", parse_mode='HTML')
+        except APIError as e:
+            bot.send_message(chat_id, f"Не удалось удалить ключ на сервере для пользователя <code>{user_to_delete}</code>.\nОшибка: <code>{str(e)}</code>", parse_mode='HTML')
     except Exception as e:
         logger.error(f"Ошибка при обработке запроса для пользователя {chat_id}: {str(e)}")
         bot.send_message(chat_id, f"Произошла ошибка при обработке запроса:\n<code>{str(e)}</code>", parse_mode='HTML')
@@ -134,7 +187,8 @@ def quality_keyboard(available_qualities):
 
 def admin_keyboard():
     keyboard = InlineKeyboardMarkup()
-    keyboard.row(InlineKeyboardButton("Список ключей", callback_data="admin_list_keys"))
+    # Unsafe
+    # keyboard.row(InlineKeyboardButton("Список ключей", callback_data="admin_list_keys"))
     keyboard.row(InlineKeyboardButton("Создать ключ", callback_data="admin_create_key"))
     keyboard.row(InlineKeyboardButton("Удалить ключ", callback_data="admin_delete_key"))
     return keyboard

@@ -1,5 +1,8 @@
 {
     "BOT_TOKEN": "<your-telegram-bot-token>",
+    "ADMIN_API_KEY": "<yt-dlp-host-admin-key>",
     "API_BASE_URL": "<yt-dlp-host-url>",
-    "ALLOWED_USERS": {"<telegram-username>": "<yt-dlp-host-user-key>"}
+    "ALLOWED_USERS": ["<telegram-username>"],
+    "AUTO_CREATE_KEY": true,
+    "AUTO_ALLOWED_CHANNEL": ""
 }
