@@ -25,7 +25,7 @@ def authorized_users_only(func):
                 if chat_id not in user_data: user_data[chat_id] = {}
                 user_data[chat_id]['username'] = message.from_user.username
                 user_data[chat_id]['client'] = api.get_client(admin.get_key(f'{message.from_user.username}_downvot'))
-                if AUTO_ALLOWED_CHANNEL:
+                if AUTO_ALLOWED_CHANNEL and not username in load_config()['ALLOWED_USERS']:
                     try:
                         member = bot.get_chat_member(chat_id=AUTO_ALLOWED_CHANNEL, user_id=message.from_user.id)
                         if member.status in ['member', 'administrator', 'creator']:
