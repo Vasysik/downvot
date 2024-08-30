@@ -20,41 +20,35 @@ def authorized_users_only(func):
             return
         
         username = str(message.from_user.username)
-        if username in load_config()['ALLOWED_USERS'] or AUTO_ALLOWED_CHANNEL:
+        CHAT_MEMBER = username in load_config()['ALLOWED_USERS']
+        if AUTO_ALLOWED_CHANNEL and not CHAT_MEMBER:
+            try:
+                member = bot.get_chat_member(chat_id=AUTO_ALLOWED_CHANNEL, user_id=message.from_user.id)
+                if member.status in ['member', 'administrator', 'creator']:
+                    CHAT_MEMBER = True
+                else:
+                    CHAT_MEMBER = False
+            except Exception as e:
+                bot.reply_to(message, f"Произошла ошибка при проверке членства в канале:\n<code>{str(e)}</code>", parse_mode='HTML')
+        if CHAT_MEMBER:
             try:
                 if chat_id not in user_data: user_data[chat_id] = {}
                 user_data[chat_id]['username'] = message.from_user.username
                 user_data[chat_id]['client'] = api.get_client(admin.get_key(f'{message.from_user.username}_downvot'))
-                if AUTO_ALLOWED_CHANNEL and not username in load_config()['ALLOWED_USERS']:
-                    try:
-                        member = bot.get_chat_member(chat_id=AUTO_ALLOWED_CHANNEL, user_id=message.from_user.id)
-                        if member.status in ['member', 'administrator', 'creator']:
-                            return func(message)
-                        else:
-                            bot.reply_to(message, f"Для использования бота вам необходимо быть подписанным на канал: {AUTO_ALLOWED_CHANNEL}")
-                    except Exception as e:
-                        bot.reply_to(message, f"Произошла ошибка при проверке членства в канале:\n<code>{str(e)}</code>", parse_mode='HTML')
-                else: return func(message)
+                return func(message)
             except APIError as e:
                 if AUTO_CREATE_KEY:
                     bot.reply_to(message, f"К сожалению, ваш ключ не найден на сервере.\nЯ создам для вас новый ключ.", parse_mode='HTML')
                     try:
                         admin.create_key(f'{message.from_user.username}_downvot', ["get_video", "get_audio", "get_info"])
                         bot.send_message(chat_id, f"Новый ключ создан успешно!", parse_mode='HTML')
-                        if AUTO_ALLOWED_CHANNEL:
-                            try:
-                                member = bot.get_chat_member(chat_id=AUTO_ALLOWED_CHANNEL, user_id=message.from_user.id)
-                                if member.status in ['member', 'administrator', 'creator']:
-                                    return func(message)
-                                else:
-                                    bot.reply_to(message, f"Для использования бота вам необходимо быть подписанным на канал: {AUTO_ALLOWED_CHANNEL}")
-                            except Exception as e:
-                                bot.reply_to(message, f"Произошла ошибка при проверке членства в канале:\n<code>{str(e)}</code>", parse_mode='HTML')
-                        else: return func(message)
+                        return func(message)
                     except APIError as e:
                         bot.send_message(chat_id, f"Произошла ошибка при создании ключа:\n<code>{str(e)}</code>", parse_mode='HTML')
                 else:
                     bot.reply_to(message, f"Произошла ошибка при инициализации клиента:\n<code>{str(e)}</code>", parse_mode='HTML')
+        elif AUTO_ALLOWED_CHANNEL:
+            bot.reply_to(message, f"Для использования бота вам необходимо быть подписанным на канал: {AUTO_ALLOWED_CHANNEL}")
         else:
             bot.reply_to(message, "Извините, у вас нет доступа к этому боту.")
     return wrapper
