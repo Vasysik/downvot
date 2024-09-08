@@ -86,7 +86,7 @@ def process_request(chat_id):
             file_url = task_result.get_file_url()
             bot.send_message(chat_id, f"Файл слишком большой для отправки, вот ваша ссылка на файл:\n{file_url}")
         else:
-            filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'])
+            filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'][:48])
             filename = re.sub(r'\s+', '_', filename) + f'_DownVot'
             if file_type == 'video': filename += f'_{quality}.mp4'
             else: filename += '.mp3'
