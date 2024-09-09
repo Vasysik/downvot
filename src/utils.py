@@ -79,11 +79,11 @@ def process_request(chat_id):
         task_result = task.get_result()
         file_obj = io.BytesIO(task_result.get_file())
 
+        file_url = task_result.get_file_url()
         file_size = file_obj.getbuffer().nbytes
         max_file_size = 50 * 1024 * 1024  # 50 MB
 
         if file_size > max_file_size:
-            file_url = task_result.get_file_url()
             bot.send_message(chat_id, f"Файл слишком большой для отправки, вот ваша ссылка на файл:\n{file_url}")
         else:
             filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'][:32])
