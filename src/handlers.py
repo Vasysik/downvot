@@ -94,7 +94,7 @@ def register_handlers(bot):
             bot.edit_message_text("Получение информации о видео.\nПожалуйста, подождите.", chat_id, call.message.message_id)
             try:
                 client = user_data[chat_id]['client']
-                info = client.get_info(url=user_data[chat_id]['url']).get_json(['qualities', 'title'])
+                info = client.get_info(url=user_data[chat_id]['url']).get_json(['qualities', 'title', 'thumbnail'])
                 user_data[chat_id]['file_info'] = info
                 if user_data[chat_id]['file_type'] == 'video':
                     available_qualities = info['qualities']
