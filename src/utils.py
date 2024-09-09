@@ -84,8 +84,8 @@ def process_request(chat_id):
         max_file_size = 50 * 1024 * 1024  # 50 MB
 
         if file_size > max_file_size:
-            if file_type == 'video': bot.send_message(chat_id, f"Ваше видео с ютуба готово!\n<a href='{file_url}'>{info['title']}</a>\nКачество: {quality}\nВот ваша ссылка на файл:\n{file_url}")
-            else: bot.send_message(chat_id, f"Ваше аудио с ютуба готово!\n<a href='{file_url}'>{info['title']}</a>\nВот ваша ссылка на файл:\n{file_url}")
+            if file_type == 'video': bot.send_message(chat_id, f"Ваше видео с ютуба готово!\n<a href='{file_url}'>{info['title']}</a>\nКачество: {quality}\nВот ваша ссылка на файл:\n{file_url}", parse_mode='HTML')
+            else: bot.send_message(chat_id, f"Ваше аудио с ютуба готово!\n<a href='{file_url}'>{info['title']}</a>\nВот ваша ссылка на файл:\n{file_url}", parse_mode='HTML')
         else:
             filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'][:48])
             filename = re.sub(r'\s+', '_', filename) + f'_DownVot'
