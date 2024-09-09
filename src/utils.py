@@ -84,16 +84,17 @@ def process_request(chat_id):
         max_file_size = 50 * 1024 * 1024  # 50 MB
 
         if file_size > max_file_size:
-            bot.send_message(chat_id, f"Файл слишком большой для отправки, вот ваша ссылка на файл:\n{file_url}")
+            if file_type == 'video': bot.send_message(chat_id, f"Ваше видео с ютуба готово!\n<a href='{file_url}'>{info['title']}</a>\nКачество: {quality}\nВот ваша ссылка на файл:\n{file_url}")
+            else: bot.send_message(chat_id, f"Ваше аудио с ютуба готово!\n<a href='{file_url}'>{info['title']}</a>\nВот ваша ссылка на файл:\n{file_url}")
         else:
-            filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'][:32])
+            filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'][:48])
             filename = re.sub(r'\s+', '_', filename) + f'_DownVot'
             if file_type == 'video': filename += f'_{quality}.mp4'
             else: filename += '.mp3'
             file_obj.name = filename
 
-            if file_type == 'video': bot.send_video(chat_id, file_obj, caption=f"<a href='{file_url}'>{filename}</a>\nВаше видео готово!", supports_streaming=True, parse_mode='HTML')
-            else: bot.send_audio(chat_id, file_obj, caption=f"<a href='{file_url}'>{filename}</a>\nВаше аудио готово!", parse_mode='HTML')
+            if file_type == 'video': bot.send_video(chat_id, file_obj, caption=f"Ваше видео с ютуба готово!\n<a href='{file_url}'>{info['title']}</a>\nКачество: {quality}", supports_streaming=True, parse_mode='HTML')
+            else: bot.send_audio(chat_id, file_obj, caption=f"Ваше аудио с ютуба готово!\n<a href='{file_url}'>{info['title']}</a>", parse_mode='HTML')
     except APIError as e:
         bot.send_message(chat_id, f"Произошла ошибка при обработке запроса:\n<code>{str(e)}</code>", parse_mode='HTML')
     except Exception as e:
