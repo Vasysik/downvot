@@ -171,7 +171,7 @@ def type_keyboard():
 def quality_keyboard(available_qualities):
     keyboard = InlineKeyboardMarkup()
     row = []
-    for quality in available_qualities:
+    for quality, data in available_qualities.items():
         if len(row) == 2:
             keyboard.row(*row)
             row = []

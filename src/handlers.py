@@ -98,7 +98,6 @@ def register_handlers(bot):
                 user_data[chat_id]['file_info'] = info
                 if user_data[chat_id]['file_type'] == 'video':
                     available_qualities = info['qualities']
-                    user_data[chat_id]['available_qualities'] = available_qualities
                     bot.edit_message_text("Выберите качество видео:", chat_id, call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities))  
                 else:
                     message = bot.edit_message_text("Начинаю обработку запроса.\nПожалуйста, подождите.", chat_id, call.message.message_id)
