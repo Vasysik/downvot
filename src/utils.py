@@ -175,7 +175,7 @@ def quality_keyboard(available_qualities):
         if len(row) == 2:
             keyboard.row(*row)
             row = []
-        row.append(InlineKeyboardButton(quality, callback_data=f"quality_{quality}"))
+        row.append(InlineKeyboardButton(f"{quality} ≈{round(data['filesize'] / (1024 * 1024), 1)}MB", callback_data=f"quality_{quality}"))
     if row:
         keyboard.row(*row)
     return keyboard
