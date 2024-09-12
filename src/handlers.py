@@ -94,9 +94,11 @@ def register_handlers(bot):
             bot.edit_message_text("Получение информации о видео.\nПожалуйста, подождите.", chat_id, call.message.message_id)
             try:
                 client = user_data[chat_id]['client']
-                info = client.get_info(url=user_data[chat_id]['url']).get_json(['qualities', 'title', 'thumbnail'])
+                info = client.get_info(url=user_data[chat_id]['url']).get_json(['qualities', 'title', 'thumbnail', 'is_live'])
                 user_data[chat_id]['file_info'] = info
-                if user_data[chat_id]['file_type'] == 'video':
+                if user_data[chat_id]['is_live'] == True:
+                    bot.edit_message_text("Извините, но скачивание прямых трансляций пока не доступно. \nПожалуйста, попробуйте позднее.", chat_id, call.message.message_id)
+                elif user_data[chat_id]['file_type'] == 'video':
                     available_qualities = info['qualities']
                     bot.edit_message_text("Выберите качество видео:", chat_id, call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities))  
                 else:
