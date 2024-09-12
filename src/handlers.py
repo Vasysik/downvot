@@ -96,7 +96,7 @@ def register_handlers(bot):
                 client = user_data[chat_id]['client']
                 info = client.get_info(url=user_data[chat_id]['url']).get_json(['qualities', 'title', 'thumbnail', 'is_live'])
                 user_data[chat_id]['file_info'] = info
-                if user_data[chat_id]['is_live'] == True:
+                if info['is_live'] == True:
                     bot.edit_message_text("Извините, но скачивание прямых трансляций пока не доступно. \nПожалуйста, попробуйте позднее.", chat_id, call.message.message_id)
                 elif user_data[chat_id]['file_type'] == 'video':
                     available_qualities = info['qualities']
