@@ -64,12 +64,18 @@ def process_request(chat_id):
     try:
         url = user_data[chat_id]['url']
         file_type = user_data[chat_id]['file_type']
+        duration = user_data[chat_id].get('duration', 60)
         quality = user_data[chat_id].get('quality', '360p')
         username = user_data[chat_id]['username']
         info = user_data[chat_id]['file_info']
         client = user_data[chat_id]['client']
         
-        if file_type == 'video':
+        if info['is_live']:
+            if file_type == 'video':
+                task = client.send_task.get_live_video(url=url, duration=duration, quality=quality)
+            else:
+                task = client.send_task.get_live_audio(url=url, duration=duration)
+        elif file_type == 'video':
             task = client.send_task.get_video(url=url, quality=quality)
         else:
             task = client.send_task.get_audio(url=url)
@@ -175,7 +181,8 @@ def quality_keyboard(available_qualities):
         if len(row) == 2:
             keyboard.row(*row)
             row = []
-        row.append(InlineKeyboardButton(f"{quality} ≈{round(data['filesize'] / (1024 * 1024), 1)}MB", callback_data=f"quality_{quality}"))
+        label = quality if data['filesize'] == 0 else f"{quality} ≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
+        row.append(InlineKeyboardButton(label, callback_data=f"quality_{quality}"))
     if row:
         keyboard.row(*row)
     return keyboard
@@ -186,4 +193,17 @@ def admin_keyboard():
     # keyboard.row(InlineKeyboardButton("Список ключей", callback_data="admin_list_keys"))
     keyboard.row(InlineKeyboardButton("Создать ключ", callback_data="admin_create_key"))
     keyboard.row(InlineKeyboardButton("Удалить ключ", callback_data="admin_delete_key"))
+    return keyboard
+
+def duration_keyboard():
+    keyboard = InlineKeyboardMarkup()
+    row = []
+    durations = [30, 60, 120, 180, 240, 300]
+    for duration in durations:
+        if len(row) == 3:
+            keyboard.row(*row)
+            row = []
+        row.append(InlineKeyboardButton(text=f"{duration} сек", callback_data=f"duration_{duration}"))
+    if row:
+        keyboard.row(*row)
     return keyboard

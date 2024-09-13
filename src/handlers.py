@@ -83,6 +83,18 @@ def register_handlers(bot):
         else:
             bot.reply_to(message, "Пожалуйста, отправьте ссылку на видео.")
 
+    @bot.callback_query_handler(func=lambda call: call.data.startswith('duration_'))
+    def handle_duration(call):
+        chat_id = call.message.chat.id
+        info = user_data[chat_id]['file_info']
+        duration = int(call.data.split('_')[1])
+        user_data[chat_id]['duration'] = duration
+        if user_data[chat_id]['file_type'] == 'video':
+            available_qualities = info['qualities']
+            bot.edit_message_text("Выберите качество видео:", chat_id, call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities))
+        else:
+            utils.process_request(chat_id)
+
     @bot.callback_query_handler(func=lambda call: True)
     @utils.authorized_users_only
     def callback_query(call):
@@ -97,7 +109,7 @@ def register_handlers(bot):
                 info = client.get_info(url=user_data[chat_id]['url']).get_json(['qualities', 'title', 'thumbnail', 'is_live'])
                 user_data[chat_id]['file_info'] = info
                 if info['is_live'] == True:
-                    bot.edit_message_text("Извините, но скачивание прямых трансляций пока не доступно. \nПожалуйста, попробуйте позднее.", chat_id, call.message.message_id)
+                    bot.edit_message_text("Укажите длительность записи:", chat_id, call.message.message_id, reply_markup=utils.duration_keyboard())
                 elif user_data[chat_id]['file_type'] == 'video':
                     available_qualities = info['qualities']
                     bot.edit_message_text("Выберите качество видео:", chat_id, call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities))  
