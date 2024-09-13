@@ -197,7 +197,13 @@ def admin_keyboard():
 
 def duration_keyboard():
     keyboard = InlineKeyboardMarkup()
-    durations = [60, 120, 180, 240, 300]
+    row = []
+    durations = [30, 60, 120, 180, 240, 300]
     for duration in durations:
-        keyboard.add(InlineKeyboardButton(text=f"{duration} сек", callback_data=f"duration_{duration}"))
+        if len(row) == 3:
+            keyboard.row(*row)
+            row = []
+        row.append(InlineKeyboardButton(text=f"{duration} сек", callback_data=f"duration_{duration}"))
+    if row:
+        keyboard.row(*row)
     return keyboard
