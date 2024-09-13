@@ -89,9 +89,7 @@ def register_handlers(bot):
         info = user_data[chat_id]['info']
         duration = int(call.data.split('_')[1])
         user_data[chat_id]['duration'] = duration
-        if duration > 300:
-            bot.answer_callback_query(call.id, "Максимальная длительность - 300 секунд.")
-        elif user_data[chat_id]['file_type'] == 'video':
+        if user_data[chat_id]['file_type'] == 'video':
             available_qualities = info['qualities']
             bot.edit_message_text("Выберите качество видео:", chat_id, call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities))
         else:

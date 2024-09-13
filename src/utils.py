@@ -194,3 +194,10 @@ def admin_keyboard():
     keyboard.row(InlineKeyboardButton("Создать ключ", callback_data="admin_create_key"))
     keyboard.row(InlineKeyboardButton("Удалить ключ", callback_data="admin_delete_key"))
     return keyboard
+
+def duration_keyboard():
+    keyboard = InlineKeyboardMarkup()
+    durations = [60, 120, 180, 240, 300]
+    for duration in durations:
+        keyboard.add(InlineKeyboardButton(text=f"{duration} сек", callback_data=f"duration_{duration}"))
+    return keyboard
