@@ -86,7 +86,7 @@ def register_handlers(bot):
     @bot.callback_query_handler(func=lambda call: call.data.startswith('duration_'))
     def handle_duration(call):
         chat_id = call.message.chat.id
-        info = user_data[chat_id]['info']
+        info = user_data[chat_id]['file_info']
         duration = int(call.data.split('_')[1])
         user_data[chat_id]['duration'] = duration
         if user_data[chat_id]['file_type'] == 'video':
