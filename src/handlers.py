@@ -105,6 +105,7 @@ def register_handlers(bot):
         chat_id = call.message.chat.id
         lang_code = call.data.split("_")[1]
         user_data[chat_id]['language'] = lang_code
+        bot.set_chat_description(chat_id, "{'language': '" + lang_code + "'}")
         bot.edit_message_text(utils.get_string('language_changed', lang_code), chat_id, call.message.message_id)
 
     @bot.callback_query_handler(func=lambda call: True)

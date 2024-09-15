@@ -3,7 +3,7 @@ from config import load_config, AUTO_CREATE_KEY, AUTO_ALLOWED_CHANNEL, DEFAULT_L
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
 from yt_dlp_host_api.exceptions import APIError
 from state import user_data, bot, admin, api
-import logging, io, re
+import logging, io, re, json
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,12 @@ def authorized_users_only(func):
             try:
                 if chat_id not in user_data: 
                     user_data[chat_id] = {}
-                    user_data[chat_id]['language'] = message.from_user.language_code
+                    chat = bot.get_chat(chat_id=chat_id)
+                    if chat.description: language = json.loads(chat.description)["language"]
+                    else: 
+                        language = message.from_user.language_code
+                        bot.set_chat_description(chat_id, "{'language': '" + language + "'}")
+                    user_data[chat_id]['language'] = language
                 user_data[chat_id]['username'] = message.from_user.username
                 user_data[chat_id]['client'] = api.get_client(admin.get_key(f'{message.from_user.username}_downvot'))
                 return func(message)
@@ -46,7 +51,7 @@ def authorized_users_only(func):
                 if AUTO_CREATE_KEY:
                     bot.reply_to(message, get_string('key_missing', user_data[chat_id]['language']), parse_mode='HTML')
                     try:
-                        admin.create_key(f'{message.from_user.username}_downvot', ["get_video", "get_audio", "get_info"])
+                        admin.create_key(f'{message.from_user.username}_downvot', ["get_video", "get_audio", "get_live_video", "get_live_audio", "get_info"])
                         bot.send_message(chat_id, get_string('key_created', user_data[chat_id]['language']), parse_mode='HTML')
                         return func(message)
                     except APIError as e:
