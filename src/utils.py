@@ -9,6 +9,8 @@ logger = logging.getLogger(__name__)
 
 def get_string(key, lang_code=DEFAULT_LANGUAGE):
     if not lang_code in LANGUAGES: lang_code = DEFAULT_LANGUAGE
+    if not key in LANGUAGES[lang_code]: lang_code = DEFAULT_LANGUAGE
+    if not key in LANGUAGES[lang_code]: return key
     return LANGUAGES[lang_code][key]
 
 def authorized_users_only(func):
@@ -118,10 +120,11 @@ def process_request(chat_id):
                 bot.delete_message(chat_id, user_data[chat_id]['processing_message_id'])
             except Exception as e:
                 logger.error(f"Не удалось удалить сообщение о обработке: {str(e)}")
-        
+        language = user_data[chat_id]['language']
         if chat_id in user_data:
             del user_data[chat_id]
-    
+            user_data[chat_id] = {}
+            user_data[chat_id]['language'] = language
     bot.send_message(chat_id, get_string('more_requests', user_data[chat_id]['language']))
 
 # Unsafe
