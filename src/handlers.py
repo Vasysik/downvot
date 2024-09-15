@@ -113,6 +113,8 @@ def register_handlers(bot):
         chat_id = call.message.chat.id
         if call.data.startswith("admin_"):
             admin_callback_query(call)
+        elif call.data.startswith("lang_"):
+            callback_language(call)
         elif call.data.startswith("type_"):
             user_data[chat_id]['file_type'] = 'video' if call.data.split("_")[1] == 'video' else 'audio'
             bot.edit_message_text(utils.get_string('getting_video_info', user_data[chat_id]['language']), chat_id, call.message.message_id)
