@@ -8,7 +8,7 @@ import logging, io, re
 logger = logging.getLogger(__name__)
 
 def get_string(key, lang_code=DEFAULT_LANGUAGE):
-    if not lang_code in LANGUAGES.items(): lang_code = DEFAULT_LANGUAGE
+    if not lang_code in LANGUAGES: lang_code = DEFAULT_LANGUAGE
     return LANGUAGES[lang_code][key]
 
 def authorized_users_only(func):
