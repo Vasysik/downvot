@@ -216,6 +216,12 @@ def duration_keyboard(lang_code):
 
 def language_keyboard():
     keyboard = InlineKeyboardMarkup()
-    for lang_code in LANGUAGES.items():
-        keyboard.add(InlineKeyboardButton(get_string('lang_name', lang_code), callback_data=f"lang_{lang_code}"))
+    row = []
+    for lang_code in LANGUAGES.keys():
+        if len(row) == 3:
+            keyboard.row(*row)
+            row = []
+        row.append(InlineKeyboardButton(get_string('lang_name', lang_code), callback_data=f"lang_{lang_code}"))
+    if row:
+        keyboard.row(*row)
     return keyboard
