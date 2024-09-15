@@ -38,12 +38,7 @@ def authorized_users_only(func):
             try:
                 if chat_id not in user_data: 
                     user_data[chat_id] = {}
-                    chat = bot.get_chat(chat_id=chat_id)
-                    if chat.description: language = json.loads(chat.description)["language"]
-                    else: 
-                        language = message.from_user.language_code
-                        bot.set_chat_description(chat_id, "{'language': '" + language + "'}")
-                    user_data[chat_id]['language'] = language
+                    user_data[chat_id]['language'] = message.from_user.language_code
                 user_data[chat_id]['username'] = message.from_user.username
                 user_data[chat_id]['client'] = api.get_client(admin.get_key(f'{message.from_user.username}_downvot'))
                 return func(message)
