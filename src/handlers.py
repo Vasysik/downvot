@@ -7,7 +7,7 @@ def register_handlers(bot):
     @bot.message_handler(commands=['start'])
     @utils.authorized_users_only
     def start_message(message):
-        logger.info(f"Пользователь {message.from_user.username} запустил бота")
+        logger.info(f"Пользователь {message.from_user.username} {user_data[message.chat.id]['language']} запустил бота")
         bot.reply_to(message, utils.get_string("start_message", user_data[message.chat.id]['language']))
     
     @bot.message_handler(commands=['admin'])
@@ -44,6 +44,12 @@ def register_handlers(bot):
             bot.register_next_step_handler(message, utils.delete_key_step)
         else:
             bot.reply_to(message, utils.get_string("no_key_deletion_access", user_data[message.chat.id]['language']))
+    
+    @bot.message_handler(commands=['language'])
+    @utils.authorized_users_only
+    def language_command(message):
+        chat_id = message.chat.id
+        bot.reply_to(message, utils.get_string('select_language', user_data[chat_id]['language']), reply_markup=utils.language_keyboard())
     
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_"))
     @utils.authorized_users_only
@@ -93,12 +99,6 @@ def register_handlers(bot):
             bot.edit_message_text(utils.get_string('select_video_quality', user_data[chat_id]['language']), chat_id, call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities))
         else:
             utils.process_request(chat_id)
-
-    @bot.message_handler(commands=['language'])
-    @utils.authorized_users_only
-    def language_command(message):
-        chat_id = message.chat.id
-        bot.reply_to(message, utils.get_string('select_language', user_data[chat_id]['language']), reply_markup=utils.language_keyboard())
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
     def callback_language(call):
