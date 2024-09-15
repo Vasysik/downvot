@@ -9,6 +9,8 @@ logger = logging.getLogger(__name__)
 
 def get_string(key, lang_code=DEFAULT_LANGUAGE):
     if not lang_code in LANGUAGES: lang_code = DEFAULT_LANGUAGE
+    if not key in LANGUAGES[lang_code]: lang_code = DEFAULT_LANGUAGE
+    if not key in LANGUAGES[lang_code]: return key
     return LANGUAGES[lang_code][key]
 
 def authorized_users_only(func):
