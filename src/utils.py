@@ -80,11 +80,11 @@ def process_request(chat_id):
         
         if info['is_live']:
             if file_type == 'video':
-                task = client.send_task.get_live_video(url=url, duration=duration, quality=quality)
+                task = client.send_task.get_live_video(url=url, duration=duration, video_quality=video_quality)
             else:
                 task = client.send_task.get_live_audio(url=url, duration=duration)
         elif file_type == 'video':
-            task = client.send_task.get_video(url=url, quality=quality)
+            task = client.send_task.get_video(url=url, video_quality=video_quality)
         else:
             task = client.send_task.get_audio(url=url)
 
@@ -183,10 +183,10 @@ def type_keyboard(lang_code):
                  InlineKeyboardButton(get_string('audio_button', lang_code), callback_data="type_audio"))
     return keyboard
 
-def quality_keyboard(available_qualities):
+def quality_keyboard(qualities):
     keyboard = InlineKeyboardMarkup()
     row = []
-    for quality, data in available_qualities.items():
+    for quality, data in qualities["video"].items():
         if len(row) == 2:
             keyboard.row(*row)
             row = []
