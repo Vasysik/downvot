@@ -30,9 +30,9 @@
     "create_key_button": "Utwórz klucz",
     "delete_key_button": "Usuń klucz",
     "second": "sek",
-    "download_complete_video_url": "Twoje wideo z YouTube jest gotowe!\n<a href='{file_url}'>{title}</a>\nJakość: {quality}\nOto link do Twojego pliku:\n{file_url}",
+    "download_complete_video_url": "Twoje wideo z YouTube jest gotowe!\n<a href='{file_url}'>{title}</a>\nJakość: {video_quality}\nOto link do Twojego pliku:\n{file_url}",
     "download_complete_audio_url": "Twoje audio z YouTube jest gotowe!\n<a href='{file_url}'>{title}</a>\nOto link do Twojego pliku:\n{file_url}",
-    "download_complete_video": "Twoje wideo z YouTube jest gotowe!\n<a href='{file_url}'>{title}</a>\nJakość: {quality}",
+    "download_complete_video": "Twoje wideo z YouTube jest gotowe!\n<a href='{file_url}'>{title}</a>\nJakość: {video_quality}",
     "download_complete_audio": "Twoje audio z YouTube jest gotowe!\n<a href='{file_url}'>{title}</a>",
     "more_requests": "Jeśli masz więcej próśb, proszę wysłać nowy link.",
     "language_changed": "Język został pomyślnie zmieniony na polski."

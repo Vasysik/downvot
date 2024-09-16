@@ -98,7 +98,7 @@ def process_request(chat_id):
         max_file_size = 50 * 1024 * 1024  # 50 MB
 
         if file_size > max_file_size:
-            if file_type == 'video': bot.send_photo(chat_id, info['thumbnail'], caption=get_string('download_complete_video_url', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], quality=quality), parse_mode='HTML')
+            if file_type == 'video': bot.send_photo(chat_id, info['thumbnail'], caption=get_string('download_complete_video_url', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], video_quality=video_quality), parse_mode='HTML')
             else: bot.send_message(chat_id, get_string('download_complete_audio_url', user_data[chat_id]['language']).format(file_url=file_url, title=info['title']), parse_mode='HTML')
         else:
             filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'][:48])
@@ -107,7 +107,7 @@ def process_request(chat_id):
             else: filename += '.mp3'
             file_obj.name = filename
 
-            if file_type == 'video': bot.send_video(chat_id, file_obj, caption=get_string('download_complete_video', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], quality=quality), supports_streaming=True, parse_mode='HTML')
+            if file_type == 'video': bot.send_video(chat_id, file_obj, caption=get_string('download_complete_video', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], video_quality=video_quality), supports_streaming=True, parse_mode='HTML')
             else: bot.send_audio(chat_id, file_obj, caption=get_string('download_complete_audio', user_data[chat_id]['language']).format(file_url=file_url, title=info['title']), parse_mode='HTML')
     except APIError as e:
         bot.send_message(chat_id, get_string('processing_error', user_data[chat_id]['language']).format(error=str(e)), parse_mode='HTML')
