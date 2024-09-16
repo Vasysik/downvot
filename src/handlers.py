@@ -98,6 +98,7 @@ def register_handlers(bot):
             available_qualities = info['qualities']
             bot.edit_message_text(utils.get_string('select_video_quality', user_data[chat_id]['language']), chat_id, call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities))
         else:
+            user_data[chat_id]['processing_message_id'] = call.message.message_id
             utils.process_request(chat_id)
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
