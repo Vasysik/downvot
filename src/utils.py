@@ -73,7 +73,7 @@ def process_request(chat_id):
         url = user_data[chat_id]['url']
         file_type = user_data[chat_id]['file_type']
         duration = user_data[chat_id].get('duration', 60)
-        quality = user_data[chat_id].get('quality', '360p')
+        video_quality = user_data[chat_id].get('video_quality', '360p')
         username = user_data[chat_id]['username']
         info = user_data[chat_id]['file_info']
         client = user_data[chat_id]['client']
@@ -103,7 +103,7 @@ def process_request(chat_id):
         else:
             filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'][:48])
             filename = re.sub(r'\s+', '_', filename) + f'_DownVot'
-            if file_type == 'video': filename += f'_{quality}.mp4'
+            if file_type == 'video': filename += f'_{video_quality}.mp4'
             else: filename += '.mp3'
             file_obj.name = filename
 

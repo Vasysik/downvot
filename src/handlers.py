@@ -132,7 +132,7 @@ def register_handlers(bot):
                 logger.error(f"Ошибка при получении информации о видео: {str(e)}")
                 bot.edit_message_text(utils.get_string('video_info_error', user_data[chat_id]['language']), chat_id, call.message.message_id)
         elif call.data.startswith("quality_"):
-            user_data[chat_id]['quality'] = call.data.split("_")[1]
+            user_data[chat_id]['video_quality'] = call.data.split("_")[1]
             user_data[chat_id]['processing_message_id'] = call.message.message_id
             utils.process_request(chat_id)
             logger.info(f"Cсылка от пользователя {call.message.from_user.username} успешно обработана!")
