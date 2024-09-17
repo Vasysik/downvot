@@ -185,27 +185,32 @@ def type_keyboard(lang_code):
 
 def quality_keyboard(qualities, chat_id, selected_video=None, selected_audio=None):
     keyboard = InlineKeyboardMarkup()
-    row = []
+    total_size = 0
+    
+    if user_data[chat_id]['file_type'] == 'video':
+        video_row = [InlineKeyboardButton(get_string('video_quality', user_data[chat_id]['language']), callback_data="select_video_quality")]
+        video_qualities = list(qualities["video"].items())
+        if not selected_video:
+            default_video = video_qualities[-1][0]
+            user_data[chat_id]['video_quality'] = default_video
+        else: default_video = selected_video
+        total_size += qualities["video"][default_video]["filesize"]
+        video_row.append(InlineKeyboardButton(f"{default_video} ≈{round(video_qualities[default_video]['filesize'] / (1024 * 1024), 1)}", callback_data="select_video_quality"))
+        keyboard.row(*video_row)
 
-    video_qualities = list(qualities["video"].items())
-    if not selected_video:
-        default_video = video_qualities[-1][0]
-        user_data[chat_id]['video_quality'] = default_video
-    else: default_video = selected_video
-    row.append(InlineKeyboardButton(f"{default_video}", callback_data="select_video_quality"))
-
+    audio_row = [InlineKeyboardButton(get_string('audio_quality', user_data[chat_id]['language']), callback_data="select_audio_quality")]
     audio_qualities = list(qualities["audio"].items())
     if not selected_audio:
         default_audio = audio_qualities[-1][0]
         user_data[chat_id]['audio_quality'] = default_audio
     else: default_audio = selected_audio
+    total_size += qualities["audio"][default_audio]["filesize"]
+    audio_row.append(InlineKeyboardButton(f"{default_audio} ≈{round(audio_qualities[default_audio]['filesize'] / (1024 * 1024), 1)}", callback_data="select_audio_quality"))
+    keyboard.row(*audio_row)
 
-    row.append(InlineKeyboardButton(f"{default_audio}", callback_data="select_audio_quality"))
-    
-    total_size = (qualities["video"][default_video]["filesize"] + 
-                  qualities["audio"][default_audio]["filesize"]) / (1024 * 1024)
-    row.append(InlineKeyboardButton(f"≈{round(total_size, 1)}MB", callback_data=f"quality_{default_video}_{default_audio}"))
-    keyboard.row(*row)
+    downnload_row = [InlineKeyboardButton(get_string('download_button', user_data[chat_id]['language']), callback_data="download_button")]
+    downnload_row.append(InlineKeyboardButton(f"≈{round(total_size / (1024 * 1024), 1)}MB", callback_data=f"quality_{default_video}_{default_audio}"))
+    keyboard.row(*downnload_row)
     
     return keyboard
 
