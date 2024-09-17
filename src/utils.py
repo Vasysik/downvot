@@ -185,15 +185,51 @@ def type_keyboard(lang_code):
 
 def quality_keyboard(qualities):
     keyboard = InlineKeyboardMarkup()
+
+    video_qualities = list(qualities["video"].items())
+    default_video = video_qualities[-1][0]
+    video_row = [InlineKeyboardButton(f"{default_video}", callback_data="select_video_quality")]
+    keyboard.row(*video_row)
+
+    audio_qualities = list(qualities["audio"].items())
+    default_audio = audio_qualities[-1][0]
+    audio_row = [InlineKeyboardButton(f"{default_audio}", callback_data="select_audio_quality")]
+    keyboard.row(*audio_row)
+    
+    total_size = (qualities["video"][default_video]["filesize"] + 
+                  qualities["audio"][default_audio]["filesize"]) / (1024 * 1024)
+    
+    done_row = [InlineKeyboardButton(f"≈{round(total_size, 1)}MB", callback_data=f"quality_{default_video}_{default_audio}")]
+    keyboard.row(*done_row)
+    
+    return keyboard
+
+def video_quality_keyboard(qualities):
+    keyboard = InlineKeyboardMarkup()
     row = []
     for quality, data in qualities["video"].items():
         if len(row) == 2:
             keyboard.row(*row)
             row = []
         label = quality if data['filesize'] == 0 else f"{quality} ≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
-        row.append(InlineKeyboardButton(label, callback_data=f"quality_{quality}"))
+        row.append(InlineKeyboardButton(label, callback_data=f"video_quality_{quality}"))
     if row:
         keyboard.row(*row)
+    keyboard.row(InlineKeyboardButton("<-", callback_data="back_to_main"))
+    return keyboard
+
+def audio_quality_keyboard(qualities):
+    keyboard = InlineKeyboardMarkup()
+    row = []
+    for quality, data in qualities["audio"].items():
+        if len(row) == 2:
+            keyboard.row(*row)
+            row = []
+        label = quality if data['filesize'] == 0 else f"{quality} ≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
+        row.append(InlineKeyboardButton(label, callback_data=f"audio_quality_{quality}"))
+    if row:
+        keyboard.row(*row)
+    keyboard.row(InlineKeyboardButton("<-", callback_data="back_to_main"))
     return keyboard
 
 def admin_keyboard(lang_code):

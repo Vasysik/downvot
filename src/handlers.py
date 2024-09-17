@@ -132,8 +132,29 @@ def register_handlers(bot):
             except Exception as e:
                 logger.error(f"Ошибка при получении информации о видео: {str(e)}")
                 bot.edit_message_text(utils.get_string('video_info_error', user_data[chat_id]['language']), chat_id, call.message.message_id)
+        elif call.data == "select_video_quality":
+            available_qualities = user_data[chat_id]['file_info']['qualities']
+            bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.message_id, reply_markup=utils.video_quality_keyboard(available_qualities))
+        elif call.data == "select_audio_quality":
+            available_qualities = user_data[chat_id]['file_info']['qualities']
+            bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.message_id, reply_markup=utils.audio_quality_keyboard(available_qualities))
+        elif call.data.startswith("video_quality_"):
+            quality = call.data.split("_")[2]
+            user_data[chat_id]['video_quality'] = quality
+            available_qualities = user_data[chat_id]['file_info']['qualities']
+            bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id))
+        elif call.data.startswith("audio_quality_"):
+            quality = call.data.split("_")[2]
+            user_data[chat_id]['audio_quality'] = quality
+            available_qualities = user_data[chat_id]['file_info']['qualities']
+            bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id))
+        elif call.data == "back_to_main":
+            available_qualities = user_data[chat_id]['file_info']['qualities']
+            bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id))
         elif call.data.startswith("quality_"):
-            user_data[chat_id]['video_quality'] = call.data.split("_")[1]
+            qualities = call.data.split("_")[1:]
+            user_data[chat_id]['video_quality'] = qualities[0]
+            user_data[chat_id]['audio_quality'] = qualities[1]
             user_data[chat_id]['processing_message_id'] = call.message.message_id
             utils.process_request(chat_id)
             logger.info(f"Cсылка от пользователя {call.message.from_user.username} успешно обработана!")
