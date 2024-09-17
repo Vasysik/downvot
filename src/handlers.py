@@ -145,21 +145,21 @@ def register_handlers(bot):
             bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.message_id, 
                                           reply_markup=utils.quality_keyboard(available_qualities, chat_id, 
                                                                         selected_video=quality, 
-                                                                        selected_audio=user_data[chat_id].get('audio_quality')))
+                                                                        selected_audio=user_data[chat_id]['audio_quality']))
         elif call.data.startswith("audio_quality_"):
             quality = call.data.split("_")[2]
             user_data[chat_id]['audio_quality'] = quality
             available_qualities = user_data[chat_id]['file_info']['qualities']
             bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.message_id, 
                                           reply_markup=utils.quality_keyboard(available_qualities, chat_id, 
-                                                                        selected_video=user_data[chat_id].get('video_quality'), 
+                                                                        selected_video=user_data[chat_id]['video_quality'], 
                                                                         selected_audio=quality))
         elif call.data == "back_to_main":
             available_qualities = user_data[chat_id]['file_info']['qualities']
             bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.message_id, 
                                           reply_markup=utils.quality_keyboard(available_qualities, chat_id, 
-                                                                        selected_video=user_data[chat_id].get('video_quality'), 
-                                                                        selected_audio=user_data[chat_id].get('audio_quality')))
+                                                                        selected_video=user_data[chat_id]['video_quality'], 
+                                                                        selected_audio=user_data[chat_id]['audio_quality']))
         elif call.data.startswith("quality_"):
             qualities = call.data.split("_")[1:]
             user_data[chat_id]['video_quality'] = qualities[0]
