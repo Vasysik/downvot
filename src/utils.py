@@ -195,10 +195,10 @@ def quality_keyboard(qualities, chat_id, selected_video=None, selected_audio=Non
     row.append(InlineKeyboardButton(f"{default_video}", callback_data="select_video_quality"))
 
     audio_qualities = list(qualities["audio"].items())
-    if not selected_video:
+    if not selected_audio:
         default_audio = audio_qualities[-1][0]
         user_data[chat_id]['audio_quality'] = default_audio
-    else: default_video = selected_video
+    else: default_audio = selected_audio
 
     row.append(InlineKeyboardButton(f"{default_audio}", callback_data="select_audio_quality"))
     
