@@ -88,19 +88,6 @@ def register_handlers(bot):
         else:
             bot.reply_to(message, utils.get_string('send_video_link', user_data[message.chat.id]['language']))
 
-    @bot.callback_query_handler(func=lambda call: call.data.startswith('duration_'))
-    def handle_duration(call):
-        chat_id = call.message.chat.id
-        info = user_data[chat_id]['file_info']
-        duration = int(call.data.split('_')[1])
-        user_data[chat_id]['duration'] = duration
-        if user_data[chat_id]['file_type'] == 'video':
-            available_qualities = info['qualities']
-            bot.edit_message_text(utils.get_string('select_video_quality', user_data[chat_id]['language']), chat_id, call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities))
-        else:
-            user_data[chat_id]['processing_message_id'] = call.message.message_id
-            utils.process_request(chat_id)
-
     @bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
     def callback_language(call):
         chat_id = call.message.chat.id
@@ -125,10 +112,14 @@ def register_handlers(bot):
                     bot.edit_message_text(utils.get_string('specify_recording_duration', user_data[chat_id]['language']), chat_id, call.message.message_id, reply_markup=utils.duration_keyboard(user_data[chat_id]['language']))
                 else:
                     available_qualities = info['qualities']
-                    bot.edit_message_text(utils.get_string('select_quality', user_data[chat_id]['language']), chat_id, call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id, ))  
+                    bot.edit_message_text(utils.get_string('select_quality', user_data[chat_id]['language']), chat_id, call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id))  
             except Exception as e:
                 logger.error(f"Ошибка при получении информации о видео: {str(e)}")
                 bot.edit_message_text(utils.get_string('video_info_error', user_data[chat_id]['language']), chat_id, call.message.message_id)
+        elif call.data.startswith('duration_'):
+            user_data[chat_id]['duration'] = int(call.data.split('_')[1])
+            available_qualities = user_data[chat_id]['file_info']['qualities']
+            bot.edit_message_text(utils.get_string('select_video_quality', user_data[chat_id]['language']), chat_id, call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id))
         elif call.data == "select_video_quality":
             available_qualities = user_data[chat_id]['file_info']['qualities']
             bot.edit_message_text(utils.get_string('select_video_quality', user_data[chat_id]['language']), chat_id, call.message.message_id, reply_markup=utils.video_quality_keyboard(available_qualities))
