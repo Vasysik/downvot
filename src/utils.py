@@ -72,7 +72,7 @@ def process_request(chat_id):
     try:
         url = user_data[chat_id]['url']
         file_type = user_data[chat_id]['file_type']
-        duration = user_data[chat_id]['duration']
+        duration = user_data[chat_id].get('duration', 30)
         video_quality = user_data[chat_id]['video_quality']
         audio_quality = user_data[chat_id]['audio_qiality']
         username = user_data[chat_id]['username']
