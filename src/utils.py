@@ -197,6 +197,9 @@ def quality_keyboard(qualities, chat_id, selected_video=None, selected_audio=Non
         total_size += qualities["video"][default_video]["filesize"]
         video_row.append(InlineKeyboardButton(f"{default_video}", callback_data="select_video_quality"))
         keyboard.row(*video_row)
+    else:
+        default_video = "best"
+        user_data[chat_id]['video_quality'] = default_video 
 
     audio_row = [InlineKeyboardButton(get_string('audio_quality', user_data[chat_id]['language']), callback_data="select_audio_quality")]
     audio_qualities = list(qualities["audio"].items())
@@ -208,8 +211,7 @@ def quality_keyboard(qualities, chat_id, selected_video=None, selected_audio=Non
     audio_row.append(InlineKeyboardButton(f"{default_audio}", callback_data="select_audio_quality"))
     keyboard.row(*audio_row)
 
-    downnload_row = [InlineKeyboardButton(get_string('download_button', user_data[chat_id]['language']), callback_data="download_button")]
-    downnload_row.append(InlineKeyboardButton(f"≈{round(total_size / (1024 * 1024), 1)}MB", callback_data=f"quality_{default_video}_{default_audio}"))
+    downnload_row = [InlineKeyboardButton(f"{get_string('download_button', user_data[chat_id]['language'])} ≈{round(total_size / (1024 * 1024), 1)}MB", callback_data=f"quality_{default_video}_{default_audio}")]
     keyboard.row(*downnload_row)
     
     return keyboard
