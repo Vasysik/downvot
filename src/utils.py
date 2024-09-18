@@ -74,7 +74,7 @@ def process_request(chat_id):
         file_type = user_data[chat_id]['file_type']
         duration = user_data[chat_id].get('duration', 30)
         video_quality = user_data[chat_id]['video_quality']
-        audio_quality = user_data[chat_id]['audio_qiality']
+        audio_quality = user_data[chat_id]['audio_quality']
         username = user_data[chat_id]['username']
         info = user_data[chat_id]['file_info']
         client = user_data[chat_id]['client']
