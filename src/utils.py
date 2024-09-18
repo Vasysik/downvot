@@ -72,21 +72,22 @@ def process_request(chat_id):
     try:
         url = user_data[chat_id]['url']
         file_type = user_data[chat_id]['file_type']
-        duration = user_data[chat_id].get('duration', 60)
-        video_quality = user_data[chat_id].get('video_quality', '360p')
+        duration = user_data[chat_id]['duration']
+        video_quality = user_data[chat_id]['video_quality']
+        audio_quality = user_data[chat_id]['audio_qiality']
         username = user_data[chat_id]['username']
         info = user_data[chat_id]['file_info']
         client = user_data[chat_id]['client']
         
         if info['is_live']:
             if file_type == 'video':
-                task = client.send_task.get_live_video(url=url, duration=duration, video_quality=video_quality)
+                task = client.send_task.get_live_video(url=url, duration=duration, video_quality=video_quality, audio_quality=audio_quality)
             else:
-                task = client.send_task.get_live_audio(url=url, duration=duration)
+                task = client.send_task.get_live_audio(url=url, duration=duration, audio_quality=audio_quality)
         elif file_type == 'video':
-            task = client.send_task.get_video(url=url, video_quality=video_quality)
+            task = client.send_task.get_video(url=url, video_quality=video_quality, audio_quality=audio_quality)
         else:
-            task = client.send_task.get_audio(url=url)
+            task = client.send_task.get_audio(url=url, audio_quality=audio_quality)
 
         bot.edit_message_text(get_string('processing_request', user_data[chat_id]['language']), chat_id, user_data[chat_id]['processing_message_id'])
         
@@ -98,8 +99,8 @@ def process_request(chat_id):
         max_file_size = 50 * 1024 * 1024  # 50 MB
 
         if file_size > max_file_size:
-            if file_type == 'video': bot.send_photo(chat_id, info['thumbnail'], caption=get_string('download_complete_video_url', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], video_quality=video_quality), parse_mode='HTML')
-            else: bot.send_message(chat_id, get_string('download_complete_audio_url', user_data[chat_id]['language']).format(file_url=file_url, title=info['title']), parse_mode='HTML')
+            if file_type == 'video': bot.send_photo(chat_id, info['thumbnail'], caption=get_string('download_complete_video_url', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], video_quality=video_quality, audio_quality=audio_quality), parse_mode='HTML')
+            else: bot.send_message(chat_id, get_string('download_complete_audio_url', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], audio_quality=audio_quality), parse_mode='HTML')
         else:
             filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'][:48])
             filename = re.sub(r'\s+', '_', filename) + f'_DownVot'
@@ -107,8 +108,8 @@ def process_request(chat_id):
             else: filename += '.mp3'
             file_obj.name = filename
 
-            if file_type == 'video': bot.send_video(chat_id, file_obj, caption=get_string('download_complete_video', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], video_quality=video_quality), supports_streaming=True, parse_mode='HTML')
-            else: bot.send_audio(chat_id, file_obj, caption=get_string('download_complete_audio', user_data[chat_id]['language']).format(file_url=file_url, title=info['title']), parse_mode='HTML')
+            if file_type == 'video': bot.send_video(chat_id, file_obj, caption=get_string('download_complete_video', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], video_quality=video_quality, audio_quality=audio_quality), supports_streaming=True, parse_mode='HTML')
+            else: bot.send_audio(chat_id, file_obj, caption=get_string('download_complete_audio', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], audio_quality=audio_quality), parse_mode='HTML')
     except APIError as e:
         bot.send_message(chat_id, get_string('processing_error', user_data[chat_id]['language']).format(error=str(e)), parse_mode='HTML')
     except Exception as e:
@@ -188,32 +189,26 @@ def quality_keyboard(qualities, chat_id, selected_video=None, selected_audio=Non
     total_size = 0
     
     if user_data[chat_id]['file_type'] == 'video':
-        video_row = [InlineKeyboardButton(get_string('video_quality', user_data[chat_id]['language']), callback_data="select_video_quality")]
         video_qualities = list(qualities["video"].items())
         if not selected_video:
             default_video = video_qualities[-1][0]
             user_data[chat_id]['video_quality'] = default_video
         else: default_video = selected_video
         total_size += qualities["video"][default_video]["filesize"]
-        video_row.append(InlineKeyboardButton(f"{default_video}", callback_data="select_video_quality"))
-        keyboard.row(*video_row)
+        keyboard.row(InlineKeyboardButton(f"{get_string('video_quality', user_data[chat_id]['language'])} {default_video}", callback_data="select_video_quality"))
     else:
         default_video = "best"
         user_data[chat_id]['video_quality'] = default_video 
 
-    audio_row = [InlineKeyboardButton(get_string('audio_quality', user_data[chat_id]['language']), callback_data="select_audio_quality")]
     audio_qualities = list(qualities["audio"].items())
     if not selected_audio:
         default_audio = audio_qualities[-1][0]
         user_data[chat_id]['audio_quality'] = default_audio
     else: default_audio = selected_audio
     total_size += qualities["audio"][default_audio]["filesize"]
-    audio_row.append(InlineKeyboardButton(f"{default_audio}", callback_data="select_audio_quality"))
-    keyboard.row(*audio_row)
+    keyboard.row(InlineKeyboardButton(f"{get_string('audio_quality', user_data[chat_id]['language'])} {default_audio}", callback_data="select_audio_quality"))
 
-    downnload_row = [InlineKeyboardButton(f"{get_string('download_button', user_data[chat_id]['language'])} ≈{round(total_size / (1024 * 1024), 1)}MB", callback_data=f"quality_{default_video}_{default_audio}")]
-    keyboard.row(*downnload_row)
-    
+    keyboard.row(InlineKeyboardButton(f"{get_string('download_button', user_data[chat_id]['language'])} ≈{round(total_size / (1024 * 1024), 1)}MB", callback_data=f"quality_{default_video}_{default_audio}"))
     return keyboard
 
 def video_quality_keyboard(qualities):
