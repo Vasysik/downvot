@@ -154,7 +154,7 @@ def create_key_step(message):
         client = user_data[chat_id]['client']
 
         new_key_username = parts[0]
-        permissions = parts[1:] if len(parts) > 1 else ["get_video", "get_audio", "get_info"]
+        permissions = parts[1:] if len(parts) > 1 else ["get_video", "get_audio", "get_live_video", "get_live_audio", "get_info"]
 
         new_key = client.create_key(f"{new_key_username}", permissions)
         bot.send_message(chat_id, get_string('key_created_successfully', user_data[chat_id]['language']).format(username=new_key_username, key=new_key, permissions=permissions), parse_mode='HTML')
@@ -195,7 +195,8 @@ def quality_keyboard(qualities, chat_id, selected_video=None, selected_audio=Non
             user_data[chat_id]['video_quality'] = default_video
         else: default_video = selected_video
         total_size += qualities["video"][default_video]["filesize"]
-        keyboard.row(InlineKeyboardButton(f"{get_string('video_quality', user_data[chat_id]['language'])} {default_video}", callback_data="select_video_quality"))
+        video_quality = qualities["video"][default_video]
+        keyboard.row(InlineKeyboardButton(f"{get_string('video_quality', user_data[chat_id]['language'])} {video_quality['height']}p{video_quality['fps']}", callback_data="select_video_quality"))
     else:
         default_video = "best"
         user_data[chat_id]['video_quality'] = default_video 
@@ -206,7 +207,8 @@ def quality_keyboard(qualities, chat_id, selected_video=None, selected_audio=Non
         user_data[chat_id]['audio_quality'] = default_audio
     else: default_audio = selected_audio
     total_size += qualities["audio"][default_audio]["filesize"]
-    keyboard.row(InlineKeyboardButton(f"{get_string('audio_quality', user_data[chat_id]['language'])} {default_audio}", callback_data="select_audio_quality"))
+    audio_quality = qualities["audio"][default_audio]
+    keyboard.row(InlineKeyboardButton(f"{get_string('audio_quality', user_data[chat_id]['language'])} {audio_quality['abr']}kbps", callback_data="select_audio_quality"))
 
     keyboard.row(InlineKeyboardButton(f"{get_string('download_button', user_data[chat_id]['language'])} ≈{round(total_size / (1024 * 1024), 1)}MB", callback_data=f"quality_{default_video}_{default_audio}"))
     return keyboard
@@ -218,7 +220,7 @@ def video_quality_keyboard(qualities):
         if len(row) == 2:
             keyboard.row(*row)
             row = []
-        label = quality if data['filesize'] == 0 else f"{quality} ≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
+        label = quality if data['filesize'] == 0 else f"{data['height']}p{data['fps']} ≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
         row.append(InlineKeyboardButton(label, callback_data=f"video_quality_{quality}"))
     if row:
         keyboard.row(*row)
@@ -232,7 +234,7 @@ def audio_quality_keyboard(qualities):
         if len(row) == 2:
             keyboard.row(*row)
             row = []
-        label = quality if data['filesize'] == 0 else f"{quality} ≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
+        label = quality if data['filesize'] == 0 else f"{data['abr']}kbps ≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
         row.append(InlineKeyboardButton(label, callback_data=f"audio_quality_{quality}"))
     if row:
         keyboard.row(*row)
