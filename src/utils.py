@@ -219,7 +219,12 @@ def quality_keyboard(qualities, chat_id, selected_video=None, selected_audio=Non
 def video_quality_keyboard(qualities):
     keyboard = InlineKeyboardMarkup()
     row = []
+    unique_qualities = {}
     for quality, data in qualities["video"].items():
+        height = data['height']
+        fps = data['fps']
+        unique_qualities[f'{height}p{fps}'] = (quality, data)
+    for height, (quality, data) in unique_qualities.items():
         if len(row) == 2:
             keyboard.row(*row)
             row = []
@@ -235,7 +240,11 @@ def video_quality_keyboard(qualities):
 def audio_quality_keyboard(qualities):
     keyboard = InlineKeyboardMarkup()
     row = []
+    unique_qualities = {}
     for quality, data in qualities["audio"].items():
+        abr = data['abr']
+        unique_qualities[abr] = (quality, data)
+    for abr, (quality, data) in unique_qualities.items():
         if len(row) == 2:
             keyboard.row(*row)
             row = []
