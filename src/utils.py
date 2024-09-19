@@ -220,7 +220,9 @@ def video_quality_keyboard(qualities):
         if len(row) == 2:
             keyboard.row(*row)
             row = []
-        label = quality if data['filesize'] == 0 else f"{data['height']}p{data['fps']} ≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
+        size = "≈?MB"
+        if data['filesize']: size = f"≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
+        label = f"{data['height']}p{data['fps']} {size}"
         row.append(InlineKeyboardButton(label, callback_data=f"video_quality_{quality}"))
     if row:
         keyboard.row(*row)
@@ -234,7 +236,9 @@ def audio_quality_keyboard(qualities):
         if len(row) == 2:
             keyboard.row(*row)
             row = []
-        label = quality if data['filesize'] == 0 else f"{data['abr']}kbps ≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
+        size = "≈?MB"
+        if data['filesize']: size = f"≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
+        label = quality if data['filesize'] == 0 else f"{data['abr']}kbps {size}"
         row.append(InlineKeyboardButton(label, callback_data=f"audio_quality_{quality}"))
     if row:
         keyboard.row(*row)
