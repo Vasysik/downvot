@@ -201,7 +201,7 @@ def quality_keyboard(qualities, chat_id, selected_video=None, selected_audio=Non
         video_quality = qualities["video"][default_video]
         keyboard.row(InlineKeyboardButton(f"{get_string('video_quality', user_data[chat_id]['language'])} {video_quality['height']}p{video_quality['fps']}", callback_data="select_video_quality"))
     else:
-        default_video = "best"
+        default_video = "bestvideo"
         user_data[chat_id]['video_quality'] = default_video 
 
     audio_qualities = list(qualities["audio"].items())
