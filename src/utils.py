@@ -223,9 +223,8 @@ def video_quality_keyboard(qualities):
     for quality, data in qualities["video"].items():
         height = data['height']
         fps = data['fps']
-        vcodec = data['vcodec'].split('.')[0]
         dynamic_range = 'HDR' if data['dynamic_range'] == 'HDR10' else 'SDR'
-        key = f'{height}p{fps}{dynamic_range}{vcodec}'
+        key = f'{height}p{fps}{dynamic_range}'
         unique_qualities[key] = (quality, data)
     for key, (quality, data) in unique_qualities.items():
         if len(row) == 2:
@@ -233,9 +232,8 @@ def video_quality_keyboard(qualities):
             row = []
         size = "≈?MB"
         if data['filesize']: size = f"≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
-        vcodec = data['vcodec'].split('.')[0]
-        dynamic_range = 'HDR' if data['dynamic_range'] == 'HDR10' else 'SDR'
-        label = f"{data['height']}p{data['fps']} {dynamic_range} {vcodec} {size}"
+        dynamic_range = 'HDR' if data['dynamic_range'] == 'HDR10' else ''
+        label = f"{data['height']}p{data['fps']} {dynamic_range} {size}"
         row.append(InlineKeyboardButton(label, callback_data=f"video_quality_{quality}"))
     if row:
         keyboard.row(*row)
@@ -248,16 +246,15 @@ def audio_quality_keyboard(qualities):
     unique_qualities = {}
     for quality, data in qualities["audio"].items():
         abr = data['abr']
-        acodec = data['acodec']
-        key = f'{abr}{acodec}'
+        key = f'{abr}'
         unique_qualities[key] = (quality, data)
-    for key, (quality, data) in unique_qualities:
+    for key, (quality, data) in unique_qualities.items():
         if len(row) == 2:
             keyboard.row(*row)
             row = []
         size = "≈?MB"
         if data['filesize']: size = f"≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
-        label = f"{data['abr']}kbps {data['acodec']} {size}"
+        label = f"{data['abr']}kbps {size}"
         row.append(InlineKeyboardButton(label, callback_data=f"audio_quality_{quality}"))
     if row:
         keyboard.row(*row)
