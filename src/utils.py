@@ -191,19 +191,16 @@ def quality_keyboard(qualities, chat_id, selected_video=None, selected_audio=Non
     keyboard = InlineKeyboardMarkup()
     total_size = 0
     
-    if user_data[chat_id]['file_type'] == 'video':
-        video_qualities = list(qualities["video"].items())
-        if not selected_video:
+    video_qualities = list(qualities["video"].items())
+    if not selected_video:
             default_video = video_qualities[-1][0]
             user_data[chat_id]['video_quality'] = default_video
-        else: default_video = selected_video
+    else: default_video = selected_video
+    if user_data[chat_id]['file_type'] == 'video':
         total_size += qualities["video"][default_video]["filesize"]
         video_quality = qualities["video"][default_video]
         dynamic_range = 'HDR' if video_quality['dynamic_range'] == 'HDR10' else ''
         keyboard.row(InlineKeyboardButton(f"{get_string('video_quality', user_data[chat_id]['language'])} {video_quality['height']}p{video_quality['fps']} {dynamic_range}", callback_data="select_video_quality"))
-    else:
-        default_video = "bestvideo"
-        user_data[chat_id]['video_quality'] = default_video 
 
     audio_qualities = list(qualities["audio"].items())
     if not selected_audio:
