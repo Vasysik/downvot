@@ -199,7 +199,8 @@ def quality_keyboard(qualities, chat_id, selected_video=None, selected_audio=Non
         else: default_video = selected_video
         total_size += qualities["video"][default_video]["filesize"]
         video_quality = qualities["video"][default_video]
-        keyboard.row(InlineKeyboardButton(f"{get_string('video_quality', user_data[chat_id]['language'])} {video_quality['height']}p{video_quality['fps']}", callback_data="select_video_quality"))
+        dynamic_range = 'HDR' if video_quality['dynamic_range'] == 'HDR10' else ''
+        keyboard.row(InlineKeyboardButton(f"{get_string('video_quality', user_data[chat_id]['language'])} {video_quality['height']}p{video_quality['fps']} {dynamic_range}", callback_data="select_video_quality"))
     else:
         default_video = "bestvideo"
         user_data[chat_id]['video_quality'] = default_video 
@@ -223,14 +224,17 @@ def video_quality_keyboard(qualities):
     for quality, data in qualities["video"].items():
         height = data['height']
         fps = data['fps']
-        unique_qualities[f'{height}p{fps}'] = (quality, data)
-    for height, (quality, data) in unique_qualities.items():
+        dynamic_range = 'HDR' if data['dynamic_range'] == 'HDR10' else 'SDR'
+        key = f'{height}p{fps}{dynamic_range}'
+        unique_qualities[key] = (quality, data)
+    for key, (quality, data) in unique_qualities.items():
         if len(row) == 2:
             keyboard.row(*row)
             row = []
         size = "≈?MB"
         if data['filesize']: size = f"≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
-        label = f"{data['height']}p{data['fps']} {size}"
+        dynamic_range = 'HDR' if data['dynamic_range'] == 'HDR10' else ''
+        label = f"{data['height']}p{data['fps']} {dynamic_range} {size}"
         row.append(InlineKeyboardButton(label, callback_data=f"video_quality_{quality}"))
     if row:
         keyboard.row(*row)
@@ -243,14 +247,15 @@ def audio_quality_keyboard(qualities):
     unique_qualities = {}
     for quality, data in qualities["audio"].items():
         abr = data['abr']
-        unique_qualities[abr] = (quality, data)
-    for abr, (quality, data) in unique_qualities.items():
+        key = f'{abr}'
+        unique_qualities[key] = (quality, data)
+    for key, (quality, data) in unique_qualities.items():
         if len(row) == 2:
             keyboard.row(*row)
             row = []
         size = "≈?MB"
         if data['filesize']: size = f"≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
-        label = quality if data['filesize'] == 0 else f"{data['abr']}kbps {size}"
+        label = f"{data['abr']}kbps {size}"
         row.append(InlineKeyboardButton(label, callback_data=f"audio_quality_{quality}"))
     if row:
         keyboard.row(*row)
