@@ -223,14 +223,19 @@ def video_quality_keyboard(qualities):
     for quality, data in qualities["video"].items():
         height = data['height']
         fps = data['fps']
-        unique_qualities[f'{height}p{fps}'] = (quality, data)
-    for height, (quality, data) in unique_qualities.items():
+        vcodec = data['vcodec'].split('.')[0]
+        dynamic_range = 'HDR' if data['dynamic_range'] == 'HDR10' else 'SDR'
+        key = f'{height}p{fps}{dynamic_range}{vcodec}'
+        unique_qualities[key] = (quality, data)
+    for key, (quality, data) in unique_qualities.items():
         if len(row) == 2:
             keyboard.row(*row)
             row = []
         size = "≈?MB"
         if data['filesize']: size = f"≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
-        label = f"{data['height']}p{data['fps']} {size}"
+        vcodec = data['vcodec'].split('.')[0]
+        dynamic_range = 'HDR' if data['dynamic_range'] == 'HDR10' else 'SDR'
+        label = f"{data['height']}p{data['fps']} {dynamic_range} {vcodec} {size}"
         row.append(InlineKeyboardButton(label, callback_data=f"video_quality_{quality}"))
     if row:
         keyboard.row(*row)
@@ -243,14 +248,16 @@ def audio_quality_keyboard(qualities):
     unique_qualities = {}
     for quality, data in qualities["audio"].items():
         abr = data['abr']
-        unique_qualities[abr] = (quality, data)
-    for abr, (quality, data) in unique_qualities.items():
+        acodec = data['acodec']
+        key = f'{abr}{acodec}'
+        unique_qualities[key] = (quality, data)
+    for key, (quality, data) in unique_qualities:
         if len(row) == 2:
             keyboard.row(*row)
             row = []
         size = "≈?MB"
         if data['filesize']: size = f"≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
-        label = quality if data['filesize'] == 0 else f"{data['abr']}kbps {size}"
+        label = f"{data['abr']}kbps {data['acodec']} {size}"
         row.append(InlineKeyboardButton(label, callback_data=f"audio_quality_{quality}"))
     if row:
         keyboard.row(*row)
