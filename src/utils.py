@@ -107,8 +107,8 @@ def process_request(chat_id):
         else:
             filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'][:48])
             filename = re.sub(r'\s+', '_', filename) + f'_DownVot'
-            if file_type == 'video': filename += f'_{video_format_info['height']}p{video_format_info['fps']}.mp4'
-            else: filename += f'_{audio_format_info['abr']}kbps.mp3'
+            if file_type == 'video': filename += f"_{video_format_info['height']}p{video_format_info['fps']}.mp4"
+            else: filename += f"_{audio_format_info['abr']}kbps.mp3"
             file_obj.name = filename
 
             if file_type == 'video': bot.send_video(chat_id, file_obj, caption=get_string('download_complete_video', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps"), supports_streaming=True, parse_mode='HTML')
