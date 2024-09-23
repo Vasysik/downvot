@@ -68,9 +68,9 @@ def detect_source(url):
             return 'YouTube'    
     return None
     
-def process_request(chat_id):
+def process_request(chat_id, processing_message_id):
     try:
-        processing_data = user_data[chat_id]['processing_message_id']
+        processing_data = user_data[chat_id][processing_message_id]
         url = processing_data['url']
         file_type = processing_data['file_type']
         duration = processing_data.get('duration', 30)
@@ -126,14 +126,12 @@ def process_request(chat_id):
         logger.error(f"Ошибка при обработке запроса для пользователя {chat_id}: {str(e)}")
         bot.send_message(chat_id, get_string('processing_error', user_data[chat_id]['language']).format(error=str(e)), parse_mode='HTML')
     finally:
-        if 'processing_message_id' in user_data.get(chat_id, {}):
+        if processing_message_id in user_data.get(chat_id, {}):
             try:
-                bot.delete_message(chat_id, user_data[chat_id]['processing_message_id']['message_id'])
+                bot.delete_message(chat_id, processing_message_id)
             except Exception as e:
                 logger.error(f"Не удалось удалить сообщение о обработке: {str(e)}")
-        language = user_data[chat_id]['language']
-        if chat_id in user_data:
-            user_data[chat_id] = {'language': language}
+            del user_data[chat_id][processing_message_id]
     bot.send_message(chat_id, get_string('more_requests', user_data[chat_id]['language']))
 
 # Unsafe
@@ -192,33 +190,33 @@ def type_keyboard(lang_code):
                  InlineKeyboardButton(get_string('audio_button', lang_code), callback_data="type_audio"))
     return keyboard
 
-def quality_keyboard(qualities, chat_id, selected_video=None, selected_audio=None):
+def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=None, selected_audio=None):
     keyboard = InlineKeyboardMarkup()
     total_size = 0
     
     video_qualities = list(qualities["video"].items())
     if not selected_video:
         default_video = video_qualities[-1][0]
-        user_data[chat_id]['processing_message_id']['video_format'] = default_video
+        user_data[chat_id][processing_message_id]['video_format'] = default_video
     else: 
         default_video = selected_video
-    if user_data[chat_id]['processing_message_id']['file_type'] == 'video':
+    if user_data[chat_id][processing_message_id]['file_type'] == 'video':
         total_size += qualities["video"][default_video]["filesize"]
         video_format = qualities["video"][default_video]
         dynamic_range = 'HDR' if video_format['dynamic_range'] == 'HDR10' else ''
-        keyboard.row(InlineKeyboardButton(f"{get_string('video_quality', user_data[chat_id]['language'])} {video_format['height']}p{video_format['fps']} {dynamic_range}", callback_data="select_video_quality"))
+        keyboard.row(InlineKeyboardButton(f"{get_string('video_quality', user_data[chat_id]['language'])} {video_format['height']}p{video_format['fps']} {dynamic_range}", callback_data=f"select_video_quality_{processing_message_id}"))
 
     audio_qualities = list(qualities["audio"].items())
     if not selected_audio:
         default_audio = audio_qualities[-1][0]
-        user_data[chat_id]['processing_message_id']['audio_format'] = default_audio
+        user_data[chat_id][processing_message_id]['audio_format'] = default_audio
     else: 
         default_audio = selected_audio
     total_size += qualities["audio"][default_audio]["filesize"]
     audio_format = qualities["audio"][default_audio]
-    keyboard.row(InlineKeyboardButton(f"{get_string('audio_quality', user_data[chat_id]['language'])} {audio_format['abr']}kbps", callback_data="select_audio_quality"))
+    keyboard.row(InlineKeyboardButton(f"{get_string('audio_quality', user_data[chat_id]['language'])} {audio_format['abr']}kbps", callback_data=f"select_audio_quality_{processing_message_id}"))
 
-    keyboard.row(InlineKeyboardButton(f"{get_string('download_button', user_data[chat_id]['language'])} ≈{round(total_size / (1024 * 1024), 1)}MB", callback_data=f"quality_{default_video}_{default_audio}"))
+    keyboard.row(InlineKeyboardButton(f"{get_string('download_button', user_data[chat_id]['language'])} ≈{round(total_size / (1024 * 1024), 1)}MB", callback_data=f"quality_{processing_message_id}_{default_video}_{default_audio}"))
     return keyboard
 
 def video_quality_keyboard(qualities):
