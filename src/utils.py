@@ -72,21 +72,25 @@ def process_request(chat_id):
     try:
         url = user_data[chat_id]['url']
         file_type = user_data[chat_id]['file_type']
-        duration = user_data[chat_id].get('duration', 60)
-        quality = user_data[chat_id].get('quality', '360p')
+        duration = user_data[chat_id].get('duration', 30)
+        video_format = user_data[chat_id]['video_format']
+        audio_format = user_data[chat_id]['audio_format']
         username = user_data[chat_id]['username']
         info = user_data[chat_id]['file_info']
         client = user_data[chat_id]['client']
+
+        video_format_info = info['qualities']["video"][video_format]
+        audio_format_info = info['qualities']["audio"][audio_format]
         
         if info['is_live']:
             if file_type == 'video':
-                task = client.send_task.get_live_video(url=url, duration=duration, quality=quality)
+                task = client.send_task.get_live_video(url=url, duration=duration, video_format=video_format, audio_format=audio_format)
             else:
-                task = client.send_task.get_live_audio(url=url, duration=duration)
+                task = client.send_task.get_live_audio(url=url, duration=duration, audio_format=audio_format)
         elif file_type == 'video':
-            task = client.send_task.get_video(url=url, quality=quality)
+            task = client.send_task.get_video(url=url, video_format=video_format, audio_format=audio_format)
         else:
-            task = client.send_task.get_audio(url=url)
+            task = client.send_task.get_audio(url=url, audio_format=audio_format)
 
         bot.edit_message_text(get_string('processing_request', user_data[chat_id]['language']), chat_id, user_data[chat_id]['processing_message_id'])
         
@@ -98,17 +102,17 @@ def process_request(chat_id):
         max_file_size = 50 * 1024 * 1024  # 50 MB
 
         if file_size > max_file_size:
-            if file_type == 'video': bot.send_photo(chat_id, info['thumbnail'], caption=get_string('download_complete_video_url', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], quality=quality), parse_mode='HTML')
-            else: bot.send_message(chat_id, get_string('download_complete_audio_url', user_data[chat_id]['language']).format(file_url=file_url, title=info['title']), parse_mode='HTML')
+            if file_type == 'video': bot.send_photo(chat_id, info['thumbnail'], caption=get_string('download_complete_video_url', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps"), parse_mode='HTML')
+            else: bot.send_message(chat_id, get_string('download_complete_audio_url', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps"), parse_mode='HTML')
         else:
             filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'][:48])
             filename = re.sub(r'\s+', '_', filename) + f'_DownVot'
-            if file_type == 'video': filename += f'_{quality}.mp4'
-            else: filename += '.mp3'
+            if file_type == 'video': filename += f"_{video_format_info['height']}p{video_format_info['fps']}.mp4"
+            else: filename += f"_{audio_format_info['abr']}kbps.mp3"
             file_obj.name = filename
 
-            if file_type == 'video': bot.send_video(chat_id, file_obj, caption=get_string('download_complete_video', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], quality=quality), supports_streaming=True, parse_mode='HTML')
-            else: bot.send_audio(chat_id, file_obj, caption=get_string('download_complete_audio', user_data[chat_id]['language']).format(file_url=file_url, title=info['title']), parse_mode='HTML')
+            if file_type == 'video': bot.send_video(chat_id, file_obj, caption=get_string('download_complete_video', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps"), supports_streaming=True, parse_mode='HTML')
+            else: bot.send_audio(chat_id, file_obj, caption=get_string('download_complete_audio', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps"), parse_mode='HTML')
     except APIError as e:
         bot.send_message(chat_id, get_string('processing_error', user_data[chat_id]['language']).format(error=str(e)), parse_mode='HTML')
     except Exception as e:
@@ -153,7 +157,7 @@ def create_key_step(message):
         client = user_data[chat_id]['client']
 
         new_key_username = parts[0]
-        permissions = parts[1:] if len(parts) > 1 else ["get_video", "get_audio", "get_info"]
+        permissions = parts[1:] if len(parts) > 1 else ["get_video", "get_audio", "get_live_video", "get_live_audio", "get_info"]
 
         new_key = client.create_key(f"{new_key_username}", permissions)
         bot.send_message(chat_id, get_string('key_created_successfully', user_data[chat_id]['language']).format(username=new_key_username, key=new_key, permissions=permissions), parse_mode='HTML')
@@ -183,17 +187,76 @@ def type_keyboard(lang_code):
                  InlineKeyboardButton(get_string('audio_button', lang_code), callback_data="type_audio"))
     return keyboard
 
-def quality_keyboard(available_qualities):
+def quality_keyboard(qualities, chat_id, selected_video=None, selected_audio=None):
+    keyboard = InlineKeyboardMarkup()
+    total_size = 0
+    
+    video_qualities = list(qualities["video"].items())
+    if not selected_video:
+            default_video = video_qualities[-1][0]
+            user_data[chat_id]['video_format'] = default_video
+    else: default_video = selected_video
+    if user_data[chat_id]['file_type'] == 'video':
+        total_size += qualities["video"][default_video]["filesize"]
+        video_format = qualities["video"][default_video]
+        dynamic_range = 'HDR' if video_format['dynamic_range'] == 'HDR10' else ''
+        keyboard.row(InlineKeyboardButton(f"{get_string('video_quality', user_data[chat_id]['language'])} {video_format['height']}p{video_format['fps']} {dynamic_range}", callback_data="select_video_quality"))
+
+    audio_qualities = list(qualities["audio"].items())
+    if not selected_audio:
+        default_audio = audio_qualities[-1][0]
+        user_data[chat_id]['audio_format'] = default_audio
+    else: default_audio = selected_audio
+    total_size += qualities["audio"][default_audio]["filesize"]
+    audio_format = qualities["audio"][default_audio]
+    keyboard.row(InlineKeyboardButton(f"{get_string('audio_quality', user_data[chat_id]['language'])} {audio_format['abr']}kbps", callback_data="select_audio_quality"))
+
+    keyboard.row(InlineKeyboardButton(f"{get_string('download_button', user_data[chat_id]['language'])} ≈{round(total_size / (1024 * 1024), 1)}MB", callback_data=f"quality_{default_video}_{default_audio}"))
+    return keyboard
+
+def video_quality_keyboard(qualities):
     keyboard = InlineKeyboardMarkup()
     row = []
-    for quality, data in available_qualities.items():
+    unique_qualities = {}
+    for quality, data in qualities["video"].items():
+        height = data['height']
+        fps = data['fps']
+        dynamic_range = 'HDR' if data['dynamic_range'] == 'HDR10' else 'SDR'
+        key = f'{height}p{fps}{dynamic_range}'
+        unique_qualities[key] = (quality, data)
+    for key, (quality, data) in unique_qualities.items():
         if len(row) == 2:
             keyboard.row(*row)
             row = []
-        label = quality if data['filesize'] == 0 else f"{quality} ≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
-        row.append(InlineKeyboardButton(label, callback_data=f"quality_{quality}"))
+        size = "≈?MB"
+        if data['filesize']: size = f"≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
+        dynamic_range = 'HDR' if data['dynamic_range'] == 'HDR10' else ''
+        label = f"{data['height']}p{data['fps']} {dynamic_range} {size}"
+        row.append(InlineKeyboardButton(label, callback_data=f"video_quality_{quality}"))
     if row:
         keyboard.row(*row)
+    keyboard.row(InlineKeyboardButton("<-", callback_data="back_to_main"))
+    return keyboard
+
+def audio_quality_keyboard(qualities):
+    keyboard = InlineKeyboardMarkup()
+    row = []
+    unique_qualities = {}
+    for quality, data in qualities["audio"].items():
+        abr = data['abr']
+        key = f'{abr}'
+        unique_qualities[key] = (quality, data)
+    for key, (quality, data) in unique_qualities.items():
+        if len(row) == 2:
+            keyboard.row(*row)
+            row = []
+        size = "≈?MB"
+        if data['filesize']: size = f"≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
+        label = f"{data['abr']}kbps {size}"
+        row.append(InlineKeyboardButton(label, callback_data=f"audio_quality_{quality}"))
+    if row:
+        keyboard.row(*row)
+    keyboard.row(InlineKeyboardButton("<-", callback_data="back_to_main"))
     return keyboard
 
 def admin_keyboard(lang_code):

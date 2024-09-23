@@ -88,18 +88,6 @@ def register_handlers(bot):
         else:
             bot.reply_to(message, utils.get_string('send_video_link', user_data[message.chat.id]['language']))
 
-    @bot.callback_query_handler(func=lambda call: call.data.startswith('duration_'))
-    def handle_duration(call):
-        chat_id = call.message.chat.id
-        info = user_data[chat_id]['file_info']
-        duration = int(call.data.split('_')[1])
-        user_data[chat_id]['duration'] = duration
-        if user_data[chat_id]['file_type'] == 'video':
-            available_qualities = info['qualities']
-            bot.edit_message_text(utils.get_string('select_video_quality', user_data[chat_id]['language']), chat_id, call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities))
-        else:
-            utils.process_request(chat_id)
-
     @bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
     def callback_language(call):
         chat_id = call.message.chat.id
@@ -122,17 +110,39 @@ def register_handlers(bot):
                 user_data[chat_id]['file_info'] = info
                 if info['is_live'] == True:
                     bot.edit_message_text(utils.get_string('specify_recording_duration', user_data[chat_id]['language']), chat_id, call.message.message_id, reply_markup=utils.duration_keyboard(user_data[chat_id]['language']))
-                elif user_data[chat_id]['file_type'] == 'video':
-                    available_qualities = info['qualities']
-                    bot.edit_message_text(utils.get_string('select_video_quality', user_data[chat_id]['language']), chat_id, call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities))  
                 else:
-                    user_data[chat_id]['processing_message_id'] = call.message.message_id
-                    utils.process_request(chat_id)
+                    available_qualities = info['qualities']
+                    bot.edit_message_text(utils.get_string('select_quality', user_data[chat_id]['language']), chat_id, call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id))  
             except Exception as e:
                 logger.error(f"Ошибка при получении информации о видео: {str(e)}")
                 bot.edit_message_text(utils.get_string('video_info_error', user_data[chat_id]['language']), chat_id, call.message.message_id)
+        elif call.data.startswith('duration_'):
+            user_data[chat_id]['duration'] = int(call.data.split('_')[1])
+            available_qualities = user_data[chat_id]['file_info']['qualities']
+            bot.edit_message_text(utils.get_string('select_video_quality', user_data[chat_id]['language']), chat_id, call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id))
+        elif call.data == "select_video_quality":
+            available_qualities = user_data[chat_id]['file_info']['qualities']
+            bot.edit_message_text(utils.get_string('select_video_quality', user_data[chat_id]['language']), chat_id, call.message.message_id, reply_markup=utils.video_quality_keyboard(available_qualities))
+        elif call.data == "select_audio_quality":
+            available_qualities = user_data[chat_id]['file_info']['qualities']
+            bot.edit_message_text(utils.get_string('select_audio_quality', user_data[chat_id]['language']), chat_id, call.message.message_id, reply_markup=utils.audio_quality_keyboard(available_qualities))
+        elif call.data.startswith("video_quality_"):
+            quality = call.data.split("_")[2]
+            user_data[chat_id]['video_format'] = quality
+            available_qualities = user_data[chat_id]['file_info']['qualities']
+            bot.edit_message_text(utils.get_string('select_quality', user_data[chat_id]['language']), chat_id, call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id, selected_video=quality, selected_audio=user_data[chat_id]['audio_format']))
+        elif call.data.startswith("audio_quality_"):
+            quality = call.data.split("_")[2]
+            user_data[chat_id]['audio_format'] = quality
+            available_qualities = user_data[chat_id]['file_info']['qualities']
+            bot.edit_message_text(utils.get_string('select_quality', user_data[chat_id]['language']), chat_id, call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id, selected_video=user_data[chat_id]['video_format'], selected_audio=quality))
+        elif call.data == "back_to_main":
+            available_qualities = user_data[chat_id]['file_info']['qualities']
+            bot.edit_message_text(utils.get_string('select_quality', user_data[chat_id]['language']), chat_id, call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id, selected_video=user_data[chat_id]['video_format'], selected_audio=user_data[chat_id]['audio_format']))
         elif call.data.startswith("quality_"):
-            user_data[chat_id]['quality'] = call.data.split("_")[1]
+            qualities = call.data.split("_")[1:]
+            user_data[chat_id]['video_format'] = qualities[0]
+            user_data[chat_id]['audio_format'] = qualities[1]
             user_data[chat_id]['processing_message_id'] = call.message.message_id
             utils.process_request(chat_id)
             logger.info(f"Cсылка от пользователя {call.message.from_user.username} успешно обработана!")
