@@ -23,41 +23,55 @@ def authorized_users_only(func):
             username = str(message.from_user.username)
             chat_id = message.message.chat.id
         else:
+            logger.warning(f"Unsupported message type: {type(message)}")
             return
         
-        username = str(message.from_user.username)
+        logger.info(f"Authorizing user: {username}")
         CHAT_MEMBER = username in load_config()['ALLOWED_USERS']
+        
         if AUTO_ALLOWED_CHANNEL and not CHAT_MEMBER:
             try:
                 member = bot.get_chat_member(chat_id=AUTO_ALLOWED_CHANNEL, user_id=message.from_user.id)
                 if member.status in ['member', 'administrator', 'creator']:
                     CHAT_MEMBER = True
+                    logger.info(f"User {username} authorized via channel membership")
                 else:
                     CHAT_MEMBER = False
+                    logger.info(f"User {username} not a member of the allowed channel")
             except Exception as e:
+                logger.error(f"Error checking channel membership for user {username}: {str(e)}")
                 bot.reply_to(message, get_string('processing_error', user_data[chat_id]['language']).format(error=str(e)), parse_mode='HTML')
+        
         if CHAT_MEMBER:
             try:
                 if chat_id not in user_data: 
                     user_data[chat_id] = {}
                     user_data[chat_id]['language'] = message.from_user.language_code
+                    logger.info(f"New user data created for {username}")
                 user_data[chat_id]['username'] = message.from_user.username
                 user_data[chat_id]['client'] = api.get_client(admin.get_key(f'{message.from_user.username}_downvot'))
+                logger.info(f"User {username} successfully authorized")
                 return func(message)
             except APIError as e:
+                logger.error(f"API Error for user {username}: {str(e)}")
                 if AUTO_CREATE_KEY:
+                    logger.info(f"Attempting to create key for user {username}")
                     bot.reply_to(message, get_string('key_missing', user_data[chat_id]['language']), parse_mode='HTML')
                     try:
                         admin.create_key(f'{message.from_user.username}_downvot', ["get_video", "get_audio", "get_live_video", "get_live_audio", "get_info"])
+                        logger.info(f"Key created successfully for user {username}")
                         bot.send_message(chat_id, get_string('key_created', user_data[chat_id]['language']), parse_mode='HTML')
                         return func(message)
                     except APIError as e:
+                        logger.error(f"Error creating key for user {username}: {str(e)}")
                         bot.send_message(chat_id, get_string('key_creation_error', user_data[chat_id]['language']).format(error=str(e)), parse_mode='HTML')
                 else:
                     bot.reply_to(message, get_string('processing_error', user_data[chat_id]['language']).format(error=str(e)), parse_mode='HTML')
         elif AUTO_ALLOWED_CHANNEL:
+            logger.warning(f"Access denied for user {username}: not a member of the allowed channel")
             bot.reply_to(message, get_string('no_access_chanel', user_data[chat_id]['language']).format(channel=AUTO_ALLOWED_CHANNEL))
         else:
+            logger.warning(f"Access denied for user {username}: not in the allowed users list")
             bot.reply_to(message, get_string('no_access', user_data[chat_id]['language']))
     return wrapper
 
@@ -70,6 +84,7 @@ def detect_source(url):
     
 def process_request(chat_id, processing_message_id):
     try:
+        logger.info(f"Starting request processing for user {chat_id}, message ID: {processing_message_id}")
         processing_data = user_data[chat_id][processing_message_id]
         url = processing_data['url']
         file_type = processing_data['file_type']
@@ -79,6 +94,8 @@ def process_request(chat_id, processing_message_id):
         username = user_data[chat_id]['username']
         info = processing_data['file_info']
         client = user_data[chat_id]['client']
+
+        logger.info(f"Request details for user {username}: file_type={file_type}, video_format={video_format}, audio_format={audio_format}, duration={duration}")
 
         video_format_info = info['qualities']["video"][video_format]
         audio_format_info = info['qualities']["audio"][audio_format]
@@ -95,6 +112,7 @@ def process_request(chat_id, processing_message_id):
 
         bot.edit_message_text(get_string('processing_request', user_data[chat_id]['language']), chat_id, processing_message_id)
         
+        logger.info(f"Waiting for task result for user {username}")
         task_result = task.get_result()
         file_obj = io.BytesIO(task_result.get_file())
 
@@ -103,11 +121,13 @@ def process_request(chat_id, processing_message_id):
         max_file_size = 50 * 1024 * 1024  # 50 MB
 
         if file_size > max_file_size:
+            logger.info(f"File size exceeds limit for user {username}. Sending download link.")
             if file_type == 'video': 
                 bot.send_photo(chat_id, info['thumbnail'], caption=get_string('download_complete_video_url', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps"), parse_mode='HTML')
             else: 
                 bot.send_message(chat_id, get_string('download_complete_audio_url', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps"), parse_mode='HTML')
         else:
+            logger.info(f"Preparing to send file for user {username}")
             filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'][:48])
             filename = re.sub(r'\s+', '_', filename) + f'_DownVot'
             if file_type == 'video': 
@@ -116,41 +136,26 @@ def process_request(chat_id, processing_message_id):
                 filename += f"_{audio_format_info['abr']}kbps.mp3"
             file_obj.name = filename
 
+            logger.info(f"Sending file '{filename}' to user {username}")
             if file_type == 'video': 
                 bot.send_video(chat_id, file_obj, caption=get_string('download_complete_video', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps"), supports_streaming=True, parse_mode='HTML')
             else: 
                 bot.send_audio(chat_id, file_obj, caption=get_string('download_complete_audio', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps"), parse_mode='HTML')
+        logger.info(f"Request processing completed successfully for user {username}")
     except APIError as e:
+        logger.error(f"API Error for user {chat_id}: {str(e)}")
         bot.send_message(chat_id, get_string('processing_error', user_data[chat_id]['language']).format(error=str(e)), parse_mode='HTML')
     except Exception as e:
-        logger.error(f"Ошибка при обработке запроса для пользователя {chat_id}: {str(e)}")
+        logger.error(f"Error processing request for user {chat_id}: {str(e)}")
         bot.send_message(chat_id, get_string('processing_error', user_data[chat_id]['language']).format(error=str(e)), parse_mode='HTML')
     finally:
         if processing_message_id in user_data.get(chat_id, {}):
             try:
                 bot.delete_message(chat_id, processing_message_id)
             except Exception as e:
-                logger.error(f"Не удалось удалить сообщение о обработке: {str(e)}")
+                logger.error(f"Failed to delete processing message for user {chat_id}: {str(e)}")
             del user_data[chat_id][processing_message_id]
     bot.send_message(chat_id, get_string('more_requests', user_data[chat_id]['language']))
-
-# Unsafe
-# def list_keys(message):
-#     try:
-#         chat_id = message.chat.id
-#         client = user_data[chat_id]['client']
-#         keys = client.get_keys()
-#         key_list = "Список ключей:\n\n"
-#         for user, data in keys.items():
-#             key_list += f"Пользователь: <code>{user}</code>\n"
-#             key_list += f"Ключ: <tg-spoiler>{data['key']}</tg-spoiler>\n"
-#             key_list += f"Права: {data['permissions']}\n\n"
-#         return key_list
-#     except APIError as e:
-#         bot.send_message(chat_id, f"Не получить список ключей.\nОшибка: <code>{str(e)}</code>", parse_mode='HTML')
-#     except Exception as e:
-#         logger.error(f"Ошибка при обработке запроса для пользователя {chat_id}: {str(e)}")
-#         bot.send_message(chat_id, f"Произошла ошибка при обработке запроса:\n<code>{str(e)}</code>", parse_mode='HTML')
 
 def create_key_step(message):
     try:
@@ -167,7 +172,7 @@ def create_key_step(message):
     except APIError as e:
         bot.send_message(chat_id, get_string('key_creation_error', user_data[chat_id]['language']).format(error=str(e)), parse_mode='HTML')
     except Exception as e:
-        logger.error(f"Ошибка при обработке запроса для пользователя {chat_id}: {str(e)}")
+        logger.error(f"Error processing request for user {chat_id}: {str(e)}")
         bot.send_message(chat_id, get_string('processing_error', user_data[chat_id]['language']).format(error=str(e)), parse_mode='HTML')
 
 def delete_key_step(message):
@@ -181,7 +186,7 @@ def delete_key_step(message):
         except APIError as e:
             bot.send_message(chat_id, get_string('key_deletion_error', user_data[chat_id]['language']).format(error=str(e)), parse_mode='HTML')
     except Exception as e:
-        logger.error(f"Ошибка при обработке запроса для пользователя {chat_id}: {str(e)}")
+        logger.error(f"Error processing request for user {chat_id}: {str(e)}")
         bot.send_message(chat_id, get_string('processing_error', user_data[chat_id]['language']).format(error=str(e)), parse_mode='HTML')
 
 def type_keyboard(lang_code):
@@ -266,8 +271,6 @@ def audio_quality_keyboard(qualities, processing_message_id):
 
 def admin_keyboard(lang_code):
     keyboard = InlineKeyboardMarkup()
-    # Unsafe
-    # keyboard.row(InlineKeyboardButton("Список ключей", callback_data="admin_list_keys"))
     keyboard.row(InlineKeyboardButton(get_string('create_key_button', lang_code), callback_data="admin_create_key"))
     keyboard.row(InlineKeyboardButton(get_string('delete_key_button', lang_code), callback_data="admin_delete_key"))
     return keyboard
