@@ -103,6 +103,7 @@ def register_handlers(bot):
     def callback_query(call):
         chat_id = call.message.chat.id
         processing_message_id = call.message.message_id
+        if not user_data[chat_id].get(processing_message_id): user_data[chat_id][processing_message_id] = {}
 
         if call.data.startswith("admin_"):
             admin_callback_query(call)
