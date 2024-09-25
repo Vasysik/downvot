@@ -219,7 +219,7 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
     keyboard.row(InlineKeyboardButton(f"{get_string('download_button', user_data[chat_id]['language'])} ≈{round(total_size / (1024 * 1024), 1)}MB", callback_data=f"quality_{processing_message_id}_{default_video}_{default_audio}"))
     return keyboard
 
-def video_quality_keyboard(qualities):
+def video_quality_keyboard(qualities, processing_message_id):
     keyboard = InlineKeyboardMarkup()
     row = []
     unique_qualities = {}
@@ -237,13 +237,13 @@ def video_quality_keyboard(qualities):
         if data['filesize']: size = f"≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
         dynamic_range = 'HDR' if data['dynamic_range'] == 'HDR10' else ''
         label = f"{data['height']}p{data['fps']} {dynamic_range} {size}"
-        row.append(InlineKeyboardButton(label, callback_data=f"video_quality_{quality}"))
+        row.append(InlineKeyboardButton(label, callback_data=f"video_quality_{quality}_{processing_message_id}"))
     if row:
         keyboard.row(*row)
-    keyboard.row(InlineKeyboardButton("<-", callback_data="back_to_main"))
+    keyboard.row(InlineKeyboardButton("<-", callback_data=f"back_to_main_{processing_message_id}"))
     return keyboard
 
-def audio_quality_keyboard(qualities):
+def audio_quality_keyboard(qualities, processing_message_id):
     keyboard = InlineKeyboardMarkup()
     row = []
     unique_qualities = {}
@@ -258,10 +258,10 @@ def audio_quality_keyboard(qualities):
         size = "≈?MB"
         if data['filesize']: size = f"≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
         label = f"{data['abr']}kbps {size}"
-        row.append(InlineKeyboardButton(label, callback_data=f"audio_quality_{quality}"))
+        row.append(InlineKeyboardButton(label, callback_data=f"audio_quality_{quality}_{processing_message_id}"))
     if row:
         keyboard.row(*row)
-    keyboard.row(InlineKeyboardButton("<-", callback_data="back_to_main"))
+    keyboard.row(InlineKeyboardButton("<-", callback_data=f"back_to_main_{processing_message_id}"))
     return keyboard
 
 def admin_keyboard(lang_code):
