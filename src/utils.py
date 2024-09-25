@@ -93,7 +93,7 @@ def process_request(chat_id, processing_message_id):
         else:
             task = client.send_task.get_audio(url=url, audio_format=audio_format)
 
-        bot.edit_message_text(get_string('processing_request', user_data[chat_id]['language']), chat_id, processing_data['message_id'])
+        bot.edit_message_text(get_string('processing_request', user_data[chat_id]['language']), chat_id, processing_message_id)
         
         task_result = task.get_result()
         file_obj = io.BytesIO(task_result.get_file())
