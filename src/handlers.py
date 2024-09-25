@@ -148,7 +148,7 @@ def register_handlers(bot):
         elif call.data.startswith("back_to_main_"):
             processing_message_id = call.data.split("_")[-1]
             available_qualities = user_data[chat_id][processing_message_id]['file_info']['qualities']
-            bot.edit_message_text(utils.get_string('select_quality', user_data[chat_id]['language']), chat_id, call.message.message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id, selected_video=user_data[chat_id]['video_format'], selected_audio=user_data[chat_id]['audio_format']))
+            bot.edit_message_text(utils.get_string('select_quality', user_data[chat_id]['language']), chat_id, processing_message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id, processing_message_id, selected_video=user_data[chat_id][processing_message_id]['video_format'], selected_audio=user_data[chat_id][processing_message_id]['audio_format']))
         elif call.data.startswith("quality_"):
             processing_message_id, video_quality, audio_quality = call.data.split("_")[1:]
             user_data[chat_id][processing_message_id]['video_format'] = video_quality
