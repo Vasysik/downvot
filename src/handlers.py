@@ -81,7 +81,7 @@ def register_handlers(bot):
                 logger.info(f"Получена ссылка от пользователя {message.from_user.username}: {message.text}")
                 processing_message = bot.reply_to(message, utils.get_string('source_detected', user_data[message.chat.id]['language']).format(source=source), reply_markup=utils.type_keyboard(user_data[message.chat.id]['language']))
                 
-                processing_message_id = processing_message.message_id
+                processing_message_id = str(processing_message.message_id)
                 user_data[message.chat.id][processing_message_id] = {
                     'url': message.text,
                     'source': source
