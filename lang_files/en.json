@@ -1,7 +1,7 @@
 {
     "lang_name": "English",
     "select_language": "Please select your preferred language:",
-    "start_message": "Hello. I'm a bot for downloading media files.\nPlease send a link to a YouTube video.",
+    "start_message": "Hello!\nI'm a bot for downloading media files.\nPlease send a link to a YouTube video.",
     "admin_panel": "Admin panel:",
     "no_admin_access": "Sorry, you don't have access to the admin panel.",
     "no_access": "Sorry, you don't have access to this bot.",
