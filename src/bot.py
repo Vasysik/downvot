@@ -10,5 +10,5 @@ register_handlers(bot)
 
 if __name__ == "__main__":
     config = load_config()
-    logger.info("Бот запущен")
+    logger.info("Bot started")
     bot.polling(none_stop=True)

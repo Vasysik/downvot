@@ -1,7 +1,7 @@
 {
     "lang_name": "Polski",
     "select_language": "Proszę wybrać preferowany język:",
-    "start_message": "Witaj. Jestem botem do pobierania plików multimedialnych.\nProszę wysłać link do filmu na YouTube.",
+    "start_message": "Witaj! Jestem botem do pobierania plików multimedialnych.\nProszę wysłać link do filmu na YouTube.",
     "admin_panel": "Panel administratora:",
     "no_admin_access": "Przepraszamy, nie masz dostępu do panelu administratora.",
     "no_access": "Przepraszamy, nie masz dostępu do tego bota.",

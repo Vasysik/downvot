@@ -28,6 +28,11 @@ def authorized_users_only(func):
         
         logger.info(f"Authorizing user: {username}")
         CHAT_MEMBER = username in load_config()['ALLOWED_USERS']
+
+        if chat_id not in user_data: 
+            user_data[chat_id] = {}
+            user_data[chat_id]['language'] = message.from_user.language_code
+            logger.info(f"New user data created for {username}")
         
         if AUTO_ALLOWED_CHANNEL and not CHAT_MEMBER:
             try:
@@ -44,10 +49,6 @@ def authorized_users_only(func):
         
         if CHAT_MEMBER:
             try:
-                if chat_id not in user_data: 
-                    user_data[chat_id] = {}
-                    user_data[chat_id]['language'] = message.from_user.language_code
-                    logger.info(f"New user data created for {username}")
                 user_data[chat_id]['username'] = message.from_user.username
                 user_data[chat_id]['client'] = api.get_client(admin.get_key(f'{message.from_user.username}_downvot'))
                 logger.info(f"User {username} successfully authorized")
