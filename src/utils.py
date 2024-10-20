@@ -124,9 +124,13 @@ def process_request(chat_id, processing_message_id):
         if file_size > max_file_size:
             logger.info(f"File size exceeds limit for user {username}. Sending download link.")
             if file_type == 'video': 
-                bot.send_photo(chat_id, info['thumbnail'], caption=get_string('download_complete_video_url', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps"), parse_mode='HTML')
+                message = get_string('download_complete_video', user_data[chat_id]['language'])
+                caption = message.format(file_url=file_url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps")
+                bot.send_photo(chat_id, info['thumbnail'], caption=caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url))
             else: 
-                bot.send_message(chat_id, get_string('download_complete_audio_url', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps"), parse_mode='HTML')
+                message = get_string('download_complete_audio', user_data[chat_id]['language'])
+                caption = message.format(file_url=file_url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps")
+                bot.send_message(chat_id, caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url))
         else:
             logger.info(f"Preparing to send file for user {username}")
             filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'][:48])
@@ -139,9 +143,13 @@ def process_request(chat_id, processing_message_id):
 
             logger.info(f"Sending file '{filename}' to user {username}")
             if file_type == 'video': 
-                bot.send_video(chat_id, file_obj, caption=get_string('download_complete_video', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps"), supports_streaming=True, parse_mode='HTML')
+                message = get_string('download_complete_video', user_data[chat_id]['language'])
+                caption = message.format(file_url=file_url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps")
+                bot.send_video(chat_id, file_obj, caption=caption, supports_streaming=True, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url))
             else: 
-                bot.send_audio(chat_id, file_obj, caption=get_string('download_complete_audio', user_data[chat_id]['language']).format(file_url=file_url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps"), parse_mode='HTML')
+                message = get_string('download_complete_audio', user_data[chat_id]['language'])
+                caption = message.format(file_url=file_url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps")
+                bot.send_audio(chat_id, file_obj, caption=caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url))
         logger.info(f"Request processing completed successfully for user {username}")
     except APIError as e:
         logger.error(f"API Error for user {chat_id}: {str(e)}")
@@ -287,6 +295,11 @@ def duration_keyboard(lang_code):
         row.append(InlineKeyboardButton(text=f"{duration} {get_string('second', lang_code)}", callback_data=f"duration_{duration}"))
     if row:
         keyboard.row(*row)
+    return keyboard
+
+def file_link_keyboard(lang_code, url):
+    keyboard = InlineKeyboardMarkup()
+    keyboard.row(InlineKeyboardButton(get_string('file_link', lang_code), url=url))
     return keyboard
 
 def language_keyboard():

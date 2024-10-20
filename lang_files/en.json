@@ -35,10 +35,9 @@
     "create_key_button": "Create key",
     "delete_key_button": "Delete key",
     "second": "sec",
-    "download_complete_video_url": "Your YouTube video is ready!\n<a href='{file_url}'>{title}</a>\nVideo quality: {video_quality}\nAudio quality: {audio_quality}\nHere's your file link:\n{file_url}",
-    "download_complete_audio_url": "Your YouTube audio is ready!\n<a href='{file_url}'>{title}</a>\nAudio quality: {audio_quality}\nHere's your file link:\n{file_url}",
     "download_complete_video": "Your YouTube video is ready!\n<a href='{file_url}'>{title}</a>\nVideo quality: {video_quality}\nAudio quality: {audio_quality}",
     "download_complete_audio": "Your YouTube audio is ready!\n<a href='{file_url}'>{title}</a>\nAudio quality: {audio_quality}",
+    "file_link": "Link to file",
     "more_requests": "If you have more requests, please send a new link.",
     "language_changed": "Language successfully changed to English."
 }
