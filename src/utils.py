@@ -125,11 +125,11 @@ def process_request(chat_id, processing_message_id):
             logger.info(f"File size exceeds limit for user {username}. Sending download link.")
             if file_type == 'video': 
                 message = get_string('download_complete_video', user_data[chat_id]['language'])
-                caption = message.format(file_url=file_url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps")
+                caption = message.format(url=url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps")
                 bot.send_photo(chat_id, info['thumbnail'], caption=caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url))
             else: 
                 message = get_string('download_complete_audio', user_data[chat_id]['language'])
-                caption = message.format(file_url=file_url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps")
+                caption = message.format(url=url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps")
                 bot.send_message(chat_id, caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url))
         else:
             logger.info(f"Preparing to send file for user {username}")
@@ -144,11 +144,11 @@ def process_request(chat_id, processing_message_id):
             logger.info(f"Sending file '{filename}' to user {username}")
             if file_type == 'video': 
                 message = get_string('download_complete_video', user_data[chat_id]['language'])
-                caption = message.format(file_url=file_url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps")
+                caption = message.format(url=url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps")
                 bot.send_video(chat_id, file_obj, caption=caption, supports_streaming=True, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url))
             else: 
                 message = get_string('download_complete_audio', user_data[chat_id]['language'])
-                caption = message.format(file_url=file_url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps")
+                caption = message.format(url=url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps")
                 bot.send_audio(chat_id, file_obj, caption=caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url))
         logger.info(f"Request processing completed successfully for user {username}")
     except APIError as e:
