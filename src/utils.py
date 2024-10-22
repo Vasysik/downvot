@@ -136,9 +136,9 @@ def process_request(chat_id, processing_message_id):
             filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'][:48])
             filename = re.sub(r'\s+', '_', filename) + f'_DownVot'
             if file_type == 'video': 
-                filename += f"_{video_format_info['height']}p{video_format_info['fps']}.mp4"
+                filename += f"_{video_format_info['height']}p{video_format_info['fps']}.{file_url.split('.')[-1]}"
             else: 
-                filename += f"_{audio_format_info['abr']}kbps.mp3"
+                filename += f"_{audio_format_info['abr']}kbps.{file_url.split('.')[-1]}"
             file_obj.name = filename
 
             logger.info(f"Sending file '{filename}' to user {username}")
