@@ -108,14 +108,14 @@ def register_handlers(bot):
             
             user_data[chat_id][processing_message_id]['start_time'] = start_time
             
-            bot.edit_message_text(
+            bot.send_message(
                 chat_id,
                 utils.get_string('enter_end_time', user_data[chat_id]['language'])
             )
             bot.register_next_step_handler(message, handle_end_time, processing_message_id)
             
         except ValueError as e:
-            bot.edit_message_text(
+            bot.send_message(
                 chat_id,
                 utils.get_string('invalid_timestamp', user_data[chat_id]['language']).format(error=str(e))
             )
@@ -141,14 +141,14 @@ def register_handlers(bot):
             
             keyboard = utils.crop_keyboard(user_data[chat_id]['language'], processing_message_id)
             
-            bot.edit_message_text(
+            bot.send_message(
                 chat_id,
                 utils.get_string('select_crop_mode', user_data[chat_id]['language']),
                 reply_markup=keyboard
             )
             
         except ValueError as e:
-            bot.edit_message_text(
+            bot.send_message(
                 chat_id,
                 utils.get_string('invalid_timestamp', user_data[chat_id]['language']).format(error=str(e))
             )
