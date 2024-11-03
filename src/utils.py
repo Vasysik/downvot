@@ -92,6 +92,7 @@ def process_request(chat_id, processing_message_id):
         duration = processing_data.get('duration', 30)
         video_format = processing_data['video_format']
         audio_format = processing_data['audio_format']
+        total_size = processing_data['total_size']
         username = user_data[chat_id]['username']
         info = processing_data['file_info']
         client = user_data[chat_id]['client']
@@ -115,13 +116,19 @@ def process_request(chat_id, processing_message_id):
         
         logger.info(f"Waiting for task result for user {username}")
         task_result = task.get_result()
-        file_obj = io.BytesIO(task_result.get_file())
-
         file_url = task_result.get_file_url()
-        file_size = file_obj.getbuffer().nbytes
+        
         max_file_size = 50 * 1024 * 1024  # 50 MB
+        file_size_out_of_range = False
+        if total_size > max_file_size:
+            file_size_out_of_range = True
+        else:
+            file_obj = io.BytesIO(task_result.get_file())
+            file_size = file_obj.getbuffer().nbytes
+            if file_size > max_file_size:
+                file_size_out_of_range = True
 
-        if file_size > max_file_size:
+        if file_size_out_of_range:
             logger.info(f"File size exceeds limit for user {username}. Sending download link.")
             if file_type == 'video': 
                 message = get_string('download_complete_video', user_data[chat_id]['language'])
@@ -227,9 +234,10 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
     else: 
         default_audio = selected_audio
     total_size += qualities["audio"][default_audio]["filesize"]
+    user_data[chat_id][processing_message_id]['total_size'] = total_size
     audio_format = qualities["audio"][default_audio]
-    keyboard.row(InlineKeyboardButton(f"{get_string('audio_quality', user_data[chat_id]['language'])} {audio_format['abr']}kbps", callback_data=f"select_audio_quality_{processing_message_id}"))
 
+    keyboard.row(InlineKeyboardButton(f"{get_string('audio_quality', user_data[chat_id]['language'])} {audio_format['abr']}kbps", callback_data=f"select_audio_quality_{processing_message_id}"))
     keyboard.row(InlineKeyboardButton(f"{get_string('download_button', user_data[chat_id]['language'])} ≈{round(total_size / (1024 * 1024), 1)}MB", callback_data=f"quality_{processing_message_id}_{default_video}_{default_audio}"))
     return keyboard
 
