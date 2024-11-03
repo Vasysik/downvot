@@ -13,6 +13,28 @@ def get_string(key, lang_code=DEFAULT_LANGUAGE):
     if not key in LANGUAGES[lang_code]: return key
     return LANGUAGES[lang_code][key]
 
+def format_duration(seconds):
+    if not seconds:
+        return "00:00:00"
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    seconds = seconds % 60
+    return f"{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
+
+def parse_timestamp(timestamp):
+    if timestamp == '-':
+        return None
+    try:
+        parts = timestamp.split(':')
+        if len(parts) != 3:
+            raise ValueError
+        hours, minutes, seconds = map(int, parts)
+        if not (0 <= hours <= 99 and 0 <= minutes <= 59 and 0 <= seconds <= 59):
+            raise ValueError
+        return hours * 3600 + minutes * 60 + seconds
+    except ValueError:
+        raise ValueError("Invalid timestamp format. Use HH:MM:SS or '-'")
+
 def authorized_users_only(func):
     @wraps(func)
     def wrapper(message):
@@ -96,6 +118,10 @@ def process_request(chat_id, processing_message_id):
         username = user_data[chat_id]['username']
         info = processing_data['file_info']
         client = user_data[chat_id]['client']
+        start_time = processing_data.get('start_time', None)
+        end_time = processing_data.get('end_time', None)
+        force_keyframes = processing_data.get('force_keyframes', False)
+
 
         logger.info(f"Request details for user {username}: file_type={file_type}, video_format={video_format}, audio_format={audio_format}, duration={duration}")
 
@@ -108,9 +134,10 @@ def process_request(chat_id, processing_message_id):
             else:
                 task = client.send_task.get_live_audio(url=url, duration=duration, audio_format=audio_format)
         elif file_type == 'video':
-            task = client.send_task.get_video(url=url, video_format=video_format, audio_format=audio_format)
+            task = client.send_task.get_video(url=url, video_format=video_format, audio_format=audio_format, start_time=start_time, end_time=end_time, force_keyframes=force_keyframes)
+
         else:
-            task = client.send_task.get_audio(url=url, audio_format=audio_format)
+            task = client.send_task.get_audio(url=url, audio_format=audio_format, start_time=start_time, end_time=end_time, force_keyframes=force_keyframes)
 
         bot.edit_message_text(get_string('processing_request', user_data[chat_id]['language']), chat_id, processing_message_id)
         
@@ -226,6 +253,22 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
         video_format = qualities["video"][default_video]
         dynamic_range = 'HDR' if video_format['dynamic_range'] == 'HDR10' else ''
         keyboard.row(InlineKeyboardButton(f"{get_string('video_quality', user_data[chat_id]['language'])} {video_format['height']}p{video_format['fps']} {dynamic_range}", callback_data=f"select_video_quality_{processing_message_id}"))
+        
+        start_time = user_data[chat_id][processing_message_id].get('start_time')
+        end_time = user_data[chat_id][processing_message_id].get('end_time')
+        video_duration = user_data[chat_id][processing_message_id]['file_info']['duration']
+        
+        start_str = format_duration(start_time) if start_time is not None else "00:00:00"
+        end_str = format_duration(end_time) if end_time is not None else format_duration(video_duration)
+        
+        keyboard.row(InlineKeyboardButton(
+            f"{start_str} - {end_str}",
+            callback_data=f"crop_time_{processing_message_id}"
+        ))
+
+        if start_time is not None or end_time is not None:
+            actual_duration = (end_time or video_duration) - (start_time or 0)
+            total_size = total_size * (actual_duration / video_duration)
 
     audio_qualities = list(qualities["audio"].items())
     if not selected_audio:
@@ -321,3 +364,10 @@ def language_keyboard():
     if row:
         keyboard.row(*row)
     return keyboard
+
+def crop_keyboard(lang_code, processing_message_id):
+    keyboard = InlineKeyboardMarkup()
+    keyboard.row(
+        InlineKeyboardButton("⚡ Fast", callback_data=f"crop_mode_{processing_message_id}_fast"),
+        InlineKeyboardButton("⚪ Precise", callback_data=f"crop_mode_{processing_message_id}_precise")
+    )
