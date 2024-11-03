@@ -253,22 +253,6 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
         video_format = qualities["video"][default_video]
         dynamic_range = 'HDR' if video_format['dynamic_range'] == 'HDR10' else ''
         keyboard.row(InlineKeyboardButton(f"{get_string('video_quality', user_data[chat_id]['language'])} {video_format['height']}p{video_format['fps']} {dynamic_range}", callback_data=f"select_video_quality_{processing_message_id}"))
-        
-        start_time = user_data[chat_id][processing_message_id].get('start_time')
-        end_time = user_data[chat_id][processing_message_id].get('end_time')
-        video_duration = user_data[chat_id][processing_message_id]['file_info']['duration']
-        
-        start_str = format_duration(start_time) if start_time is not None else "00:00:00"
-        end_str = format_duration(end_time) if end_time is not None else format_duration(video_duration)
-        
-        keyboard.row(InlineKeyboardButton(
-            f"{start_str} - {end_str}",
-            callback_data=f"crop_time_{processing_message_id}"
-        ))
-
-        if start_time is not None or end_time is not None:
-            actual_duration = (end_time or video_duration) - (start_time or 0)
-            total_size = total_size * (actual_duration / video_duration)
 
     audio_qualities = list(qualities["audio"].items())
     if not selected_audio:
@@ -279,8 +263,19 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
     total_size += qualities["audio"][default_audio]["filesize"]
     user_data[chat_id][processing_message_id]['total_size'] = total_size
     audio_format = qualities["audio"][default_audio]
-
     keyboard.row(InlineKeyboardButton(f"{get_string('audio_quality', user_data[chat_id]['language'])} {audio_format['abr']}kbps", callback_data=f"select_audio_quality_{processing_message_id}"))
+
+    start_time = user_data[chat_id][processing_message_id].get('start_time')
+    end_time = user_data[chat_id][processing_message_id].get('end_time')
+    duration = user_data[chat_id][processing_message_id]['file_info']['duration']
+    start_str = format_duration(start_time) if start_time is not None else "00:00:00"
+    end_str = format_duration(end_time) if end_time is not None else format_duration(duration)
+    keyboard.row(InlineKeyboardButton(f"{start_str} - {end_str}", callback_data=f"crop_time_{processing_message_id}"))
+
+    if start_time is not None or end_time is not None:
+        actual_duration = (end_time or duration) - (start_time or 0)
+        total_size = total_size * (actual_duration / duration)
+
     keyboard.row(InlineKeyboardButton(f"{get_string('download_button', user_data[chat_id]['language'])} ≈{round(total_size / (1024 * 1024), 1)}MB", callback_data=f"quality_{processing_message_id}_{default_video}_{default_audio}"))
     return keyboard
 
@@ -367,7 +362,7 @@ def language_keyboard():
 
 def crop_keyboard(lang_code, processing_message_id):
     keyboard = InlineKeyboardMarkup()
-    keyboard.row(
-        InlineKeyboardButton("⚡ Fast", callback_data=f"crop_mode_{processing_message_id}_fast"),
-        InlineKeyboardButton("⚪ Precise", callback_data=f"crop_mode_{processing_message_id}_precise")
+    return keyboard.row(
+        InlineKeyboardButton(get_string('fast', lang_code), callback_data=f"crop_mode_{processing_message_id}_fast"),
+        InlineKeyboardButton(get_string('precise', lang_code), callback_data=f"crop_mode_{processing_message_id}_precise")
     )
