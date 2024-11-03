@@ -13,7 +13,7 @@
     "source_detected": "Wykryto serwis: {source}.\nWybierz format do zapisania:",
     "unknown_source": "Przepraszamy, nie mogę określić źródła z tego linku.\nUpewnij się, że wysłałeś prawidłowy link.",
     "send_video_link": "Proszę wysłać link do filmu.",
-    "select_quality": "Wybierz jakość:",
+    "select_quality": "Ustawienia pobierania:",
     "video_quality": "Jakość wideo:",
     "audio_quality": "Jakość audio:",
     "download_button": "Pobierz",
