@@ -251,7 +251,8 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
     else: 
         default_video = selected_video
     if user_data[chat_id][processing_message_id]['file_type'] == 'video':
-        total_size += qualities["video"][default_video]["filesize"]
+        if qualities["video"][default_video]["filesize"]: total_size += qualities["video"][default_video]["filesize"]
+        elif qualities["video"][default_video]["filesize_approx"]: total_size += qualities["video"][default_video]["filesize_approx"]
         video_format = qualities["video"][default_video]
         dynamic_range = 'HDR' if video_format['dynamic_range'] == 'HDR10' else ''
         keyboard.row(InlineKeyboardButton(f"{get_string('video_quality', user_data[chat_id]['language'])} {video_format['height']}p{video_format['fps']} {dynamic_range}", callback_data=f"select_video_quality_{processing_message_id}"))
@@ -262,7 +263,9 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
         user_data[chat_id][processing_message_id]['audio_format'] = default_audio
     else: 
         default_audio = selected_audio
-    total_size += qualities["audio"][default_audio]["filesize"]
+    if qualities["audio"][default_audio]["filesize"]: total_size += qualities["audio"][default_audio]["filesize"]
+    elif qualities["audio"][default_audio]["filesize_approx"]: total_size += qualities["audio"][default_audio]["filesize_approx"]
+    
     user_data[chat_id][processing_message_id]['total_size'] = total_size
     audio_format = qualities["audio"][default_audio]
     keyboard.row(InlineKeyboardButton(f"{get_string('audio_quality', user_data[chat_id]['language'])} {audio_format['abr']}kbps", callback_data=f"select_audio_quality_{processing_message_id}"))
@@ -295,8 +298,11 @@ def video_quality_keyboard(qualities, processing_message_id):
         if len(row) == 2:
             keyboard.row(*row)
             row = []
+        
         size = "≈?MB"
         if data['filesize']: size = f"≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
+        elif data['filesize_approx']: size = f"≈{round(data['filesize_approx'] / (1024 * 1024), 1)}MB"
+
         dynamic_range = 'HDR' if data['dynamic_range'] == 'HDR10' else ''
         label = f"{data['height']}p{data['fps']} {dynamic_range} {size}"
         row.append(InlineKeyboardButton(label, callback_data=f"video_quality_{quality}_{processing_message_id}"))
@@ -317,8 +323,11 @@ def audio_quality_keyboard(qualities, processing_message_id):
         if len(row) == 2:
             keyboard.row(*row)
             row = []
+        
         size = "≈?MB"
         if data['filesize']: size = f"≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
+        elif data['filesize_approx']: size = f"≈{round(data['filesize_approx'] / (1024 * 1024), 1)}MB"
+
         label = f"{data['abr']}kbps {size}"
         row.append(InlineKeyboardButton(label, callback_data=f"audio_quality_{quality}_{processing_message_id}"))
     if row:
