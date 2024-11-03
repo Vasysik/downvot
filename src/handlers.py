@@ -236,7 +236,7 @@ def register_handlers(bot):
                 utils.process_request(chat_id, processing_message_id)
                 logger.info(f"Link from user {call.message.from_user.username} successfully processed!")
             elif call.data.startswith("crop_time_"):
-                processing_message_id = call.data.split("_")[2]
+                processing_message_id = call.data.split("_")[-1]
                 bot.edit_message_text(
                     utils.get_string('enter_start_time', user_data[chat_id]['language']), 
                     chat_id, 
