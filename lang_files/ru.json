@@ -38,6 +38,13 @@
     "download_complete_video": "Ваше видео с ютуба готово!\n<a href='{url}'>{title}</a>\nКачество видео: {video_quality}\nКачество аудио: {audio_quality}",
     "download_complete_audio": "Ваше аудио с ютуба готово!\n<a href='{url}'>{title}</a>\nКачество аудио: {audio_quality}",
     "file_link": "Ссылка на файл",
+    "select_range": "Диапазон:",
+    "enter_start_time": "Введите время начала в формате ЧЧ:ММ:СС или '-' для начала",
+    "enter_end_time": "Введите время окончания в формате ЧЧ:ММ:СС или '-' для конца",
+    "invalid_timestamp": "Недопустимая временная метка: {error}. Попробуйте еще раз.",
+    "select_crop_mode": "Выберите точность обрезки:",
+    "fast": "Быстро",
+    "precise": "Качественно",
     "more_requests": "Если у вас есть еще запросы, пожалуйста, отправьте новую ссылку.",
     "language_changed": "Язык успешно изменен на русский."
 }
