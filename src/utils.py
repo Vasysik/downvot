@@ -270,7 +270,7 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
     duration = user_data[chat_id][processing_message_id]['file_info']['duration']
     start_str = format_duration(start_time) if start_time is not None else "00:00:00"
     end_str = format_duration(end_time) if end_time is not None else format_duration(duration)
-    keyboard.row(InlineKeyboardButton(f"{start_str} - {end_str}", callback_data=f"crop_time_{processing_message_id}"))
+    keyboard.row(InlineKeyboardButton(f"{start_str}-{end_str}", callback_data=f"crop_time_{processing_message_id}"))
 
     if start_time is not None or end_time is not None:
         actual_duration = (end_time or duration) - (start_time or 0)

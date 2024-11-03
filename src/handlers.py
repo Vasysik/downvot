@@ -219,11 +219,11 @@ def register_handlers(bot):
             elif call.data.startswith("crop_mode_"):
                 processing_message_id = call.data.split("_")[2]
                 crop_mode = call.data.split("_")[3]
-                force_keyframes = False
-                if crop_mode == 'precise': force_keyframes = True
-                user_data[chat_id][processing_message_id]['force_keyframes'] = True
+                force_keyframes = (crop_mode == 'precise')
+                user_data[chat_id][processing_message_id]['force_keyframes'] = force_keyframes
+                available_qualities = user_data[chat_id][processing_message_id]['file_info']['qualities']
                 bot.edit_message_text(utils.get_string('select_quality', user_data[chat_id]['language']), chat_id, processing_message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id, processing_message_id, selected_video=user_data[chat_id][processing_message_id]['video_format'], selected_audio=user_data[chat_id][processing_message_id]['audio_format']))
-
+        
         except Exception as e:
             logger.error(f"Error processing callback query: {str(e)}")
             bot.send_message(chat_id, utils.get_string('processing_error', user_data[chat_id]['language']).format(error=str(e)), parse_mode='HTML')
