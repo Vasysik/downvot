@@ -108,11 +108,7 @@ def register_handlers(bot):
                     raise ValueError("Start time cannot be greater than video duration")
             
             user_data[chat_id][processing_message_id]['start_time'] = start_time
-            
-            bot.send_message(
-                chat_id,
-                utils.get_string('enter_end_time', user_data[chat_id]['language'])
-            )
+            bot.edit_message_text(utils.get_string('enter_end_time', user_data[chat_id]['language']), chat_id, processing_message_id)
             bot.register_next_step_handler(message, handle_end_time, processing_message_id)
             
         except ValueError as e:
@@ -143,12 +139,7 @@ def register_handlers(bot):
             user_data[chat_id][processing_message_id]['end_time'] = end_time
             
             keyboard = utils.crop_keyboard(user_data[chat_id]['language'], processing_message_id)
-            
-            bot.send_message(
-                chat_id,
-                utils.get_string('select_crop_mode', user_data[chat_id]['language']),
-                reply_markup=keyboard
-            )
+            bot.edit_message_text(utils.get_string('select_crop_mode', user_data[chat_id]['language']), chat_id,processing_message_id, reply_markup=keyboard)
             
         except ValueError as e:
             bot.send_message(
