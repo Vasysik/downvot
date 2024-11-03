@@ -154,29 +154,6 @@ def register_handlers(bot):
             )
             bot.register_next_step_handler(message, handle_end_time, processing_message_id)
 
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("crop_mode_"))
-    @utils.authorized_users_only
-    def handle_crop_mode(call):
-        chat_id = call.message.chat.id
-        _, processing_message_id, mode = call.data.split("_")
-        
-        user_data[chat_id][processing_message_id]['crop_mode'] = mode
-        available_qualities = user_data[chat_id][processing_message_id]['file_info']['qualities']
-        
-        bot.delete_message(chat_id, call.message.message_id)
-        bot.edit_message_text(
-            utils.get_string('select_quality', user_data[chat_id]['language']),
-            chat_id,
-            processing_message_id,
-            reply_markup=utils.quality_keyboard(
-                available_qualities,
-                chat_id,
-                processing_message_id,
-                selected_video=user_data[chat_id][processing_message_id].get('video_format'),
-                selected_audio=user_data[chat_id][processing_message_id].get('audio_format')
-            )
-        )
-
     @bot.callback_query_handler(func=lambda call: True)
     @utils.authorized_users_only
     def callback_query(call):
@@ -236,13 +213,17 @@ def register_handlers(bot):
                 utils.process_request(chat_id, processing_message_id)
                 logger.info(f"Link from user {call.message.from_user.username} successfully processed!")
             elif call.data.startswith("crop_time_"):
-                processing_message_id = call.data.split("_")[-1]
-                bot.edit_message_text(
-                    utils.get_string('enter_start_time', user_data[chat_id]['language']), 
-                    chat_id, 
-                    processing_message_id
-                )
+                processing_message_id = call.data.split("_")[2]
+                bot.edit_message_text(utils.get_string('enter_start_time', user_data[chat_id]['language']), chat_id, processing_message_id )
                 bot.register_next_step_handler(call.message, handle_start_time, processing_message_id)
+            elif call.data.startswith("crop_mode_"):
+                processing_message_id = call.data.split("_")[2]
+                crop_mode = call.data.split("_")[3]
+                force_keyframes = False
+                if crop_mode == 'precise': force_keyframes = True
+                user_data[chat_id][processing_message_id]['force_keyframes'] = True
+                bot.edit_message_text(utils.get_string('select_quality', user_data[chat_id]['language']), chat_id, processing_message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id, processing_message_id, selected_video=user_data[chat_id][processing_message_id]['video_format'], selected_audio=user_data[chat_id][processing_message_id]['audio_format']))
+
         except Exception as e:
             logger.error(f"Error processing callback query: {str(e)}")
             bot.send_message(chat_id, utils.get_string('processing_error', user_data[chat_id]['language']).format(error=str(e)), parse_mode='HTML')
