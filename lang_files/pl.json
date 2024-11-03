@@ -42,7 +42,7 @@
     "enter_start_time": "Wprowadź czas rozpoczęcia w formacie GG:MM:SS lub '-' dla początku",
     "enter_end_time": "Wprowadź czas zakończenia w formacie GG:MM:SS lub '-' dla końca",
     "invalid_timestamp": "Nieprawidłowy znacznik czasu: {error}. Spróbuj ponownie.",
-    "select_crop_mode": "Wybierz precyzję przycinania:",
+    "select_crop_mode": "Wybierz jakość przycinania:",
     "fast": "Szybki",
     "precise": "Dokładny",
     "more_requests": "Jeśli masz więcej próśb, proszę wysłać nowy link.",
