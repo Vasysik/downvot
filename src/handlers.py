@@ -100,7 +100,11 @@ def register_handlers(bot):
             start_time_str = message.text.strip()
             if start_time_str == '-':
                 start_time = None
-            else: start_time = start_time_str
+            else:
+                start_time = utils.parse_timestamp(start_time_str)
+                video_duration = user_data[chat_id][processing_message_id]['file_info']['duration']
+                if start_time >= video_duration:
+                    raise ValueError("Start time cannot be greater than video duration")
             
             user_data[chat_id][processing_message_id]['start_time'] = start_time
             
@@ -123,7 +127,15 @@ def register_handlers(bot):
             end_time_str = message.text.strip()
             if end_time_str == '-':
                 end_time = None
-            else: end_time = end_time_str
+            else:
+                end_time = utils.parse_timestamp(end_time_str)
+                video_duration = user_data[chat_id][processing_message_id]['file_info']['duration']
+                if end_time > video_duration:
+                    end_time = video_duration
+                
+                start_time = user_data[chat_id][processing_message_id].get('start_time')
+                if start_time is not None and end_time <= start_time:
+                    raise ValueError("End time must be greater than start time")
             
             user_data[chat_id][processing_message_id]['end_time'] = end_time
             

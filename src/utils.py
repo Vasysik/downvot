@@ -122,6 +122,8 @@ def process_request(chat_id, processing_message_id):
         end_time = processing_data.get('end_time', None)
         force_keyframes = processing_data.get('force_keyframes', False)
 
+        if start_time: start_time = format_duration(start_time)
+        if end_time: end_time = format_duration(end_time)
 
         logger.info(f"Request details for user {username}: file_type={file_type}, video_format={video_format}, audio_format={audio_format}, duration={duration}")
 
