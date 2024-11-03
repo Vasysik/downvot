@@ -43,8 +43,8 @@
     "enter_end_time": "Wprowadź czas zakończenia w formacie GG:MM:SS lub '-' dla końca",
     "invalid_timestamp": "Nieprawidłowy znacznik czasu: {error}. Spróbuj ponownie.",
     "select_crop_mode": "Wybierz jakość przycinania:",
-    "fast": "Szybki",
-    "precise": "Dokładny",
+    "fast": "Szybka",
+    "precise": "Precyzyjna",
     "more_requests": "Jeśli masz więcej próśb, proszę wysłać nowy link.",
     "language_changed": "Język został pomyślnie zmieniony na polski."
 }
