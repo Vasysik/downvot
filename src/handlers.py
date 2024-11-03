@@ -96,6 +96,7 @@ def register_handlers(bot):
 
     def handle_start_time(message, processing_message_id):
         chat_id = message.chat.id
+        message_id = message.message_id
         try:
             start_time_str = message.text.strip()
             if start_time_str == '-':
@@ -120,8 +121,10 @@ def register_handlers(bot):
                 utils.get_string('invalid_timestamp', user_data[chat_id]['language']).format(error=str(e))
             )
             bot.register_next_step_handler(message, handle_start_time, processing_message_id)
+        bot.delete_message(chat_id, message_id)
 
     def handle_end_time(message, processing_message_id):
+        message_id = message.message_id
         chat_id = message.chat.id
         try:
             end_time_str = message.text.strip()
@@ -153,6 +156,7 @@ def register_handlers(bot):
                 utils.get_string('invalid_timestamp', user_data[chat_id]['language']).format(error=str(e))
             )
             bot.register_next_step_handler(message, handle_end_time, processing_message_id)
+        bot.delete_message(chat_id, message_id)
 
     @bot.callback_query_handler(func=lambda call: True)
     @utils.authorized_users_only
