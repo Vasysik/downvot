@@ -277,7 +277,7 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
     end_str = format_duration(end_time) if end_time is not None else format_duration(duration)
     crop_mode_str = get_string('fast', user_data[chat_id]['language'])
     if user_data[chat_id][processing_message_id].get('force_keyframes', False): crop_mode_str = get_string('precise', user_data[chat_id]['language'])
-    keyboard.row(InlineKeyboardButton(f"{get_string('select_range', user_data[chat_id]['language'])} {start_str}-{end_str} {crop_mode_str}", callback_data=f"crop_time_{processing_message_id}"))
+    keyboard.row(InlineKeyboardButton(f"{get_string('select_range', user_data[chat_id]['language'])} {start_str}-{end_str}", callback_data=f"crop_time_{processing_message_id}"))
 
     if start_time is not None or end_time is not None:
         actual_duration = (end_time or duration) - (start_time or 0)
