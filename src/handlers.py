@@ -94,6 +94,61 @@ def register_handlers(bot):
         user_data[chat_id]['language'] = lang_code
         bot.edit_message_text(utils.get_string('language_changed', lang_code), chat_id, call.message.message_id)
 
+    def handle_start_time(message, processing_message_id):
+        chat_id = message.chat.id
+        message_id = message.message_id
+        try:
+            start_time_str = message.text.strip()
+            if start_time_str == '-':
+                start_time = None
+            else:
+                start_time = utils.parse_timestamp(start_time_str)
+                video_duration = user_data[chat_id][processing_message_id]['file_info']['duration']
+                if start_time >= video_duration:
+                    raise ValueError("Start time cannot be greater than video duration")
+            
+            user_data[chat_id][processing_message_id]['start_time'] = start_time
+            bot.edit_message_text(utils.get_string('enter_end_time', user_data[chat_id]['language']), chat_id, processing_message_id)
+            bot.register_next_step_handler(message, handle_end_time, processing_message_id)
+            
+        except ValueError as e:
+            bot.send_message(
+                chat_id,
+                utils.get_string('invalid_timestamp', user_data[chat_id]['language']).format(error=str(e))
+            )
+            bot.register_next_step_handler(message, handle_start_time, processing_message_id)
+        bot.delete_message(chat_id, message_id)
+
+    def handle_end_time(message, processing_message_id):
+        message_id = message.message_id
+        chat_id = message.chat.id
+        try:
+            end_time_str = message.text.strip()
+            if end_time_str == '-':
+                end_time = None
+            else:
+                end_time = utils.parse_timestamp(end_time_str)
+                video_duration = user_data[chat_id][processing_message_id]['file_info']['duration']
+                if end_time > video_duration:
+                    end_time = video_duration
+                
+                start_time = user_data[chat_id][processing_message_id].get('start_time')
+                if start_time is not None and end_time <= start_time:
+                    raise ValueError("End time must be greater than start time")
+            
+            user_data[chat_id][processing_message_id]['end_time'] = end_time
+            
+            keyboard = utils.crop_keyboard(user_data[chat_id]['language'], processing_message_id)
+            bot.edit_message_text(utils.get_string('select_crop_mode', user_data[chat_id]['language']), chat_id,processing_message_id, reply_markup=keyboard)
+            
+        except ValueError as e:
+            bot.send_message(
+                chat_id,
+                utils.get_string('invalid_timestamp', user_data[chat_id]['language']).format(error=str(e))
+            )
+            bot.register_next_step_handler(message, handle_end_time, processing_message_id)
+        bot.delete_message(chat_id, message_id)
+
     @bot.callback_query_handler(func=lambda call: True)
     @utils.authorized_users_only
     def callback_query(call):
@@ -109,7 +164,7 @@ def register_handlers(bot):
                 bot.edit_message_text(utils.get_string('getting_video_info', user_data[chat_id]['language']), chat_id, processing_message_id)
                 try:
                     client = user_data[chat_id]['client']
-                    info = client.get_info(url=user_data[chat_id][processing_message_id]['url']).get_json(['qualities', 'title', 'thumbnail', 'is_live'])
+                    info = client.get_info(url=user_data[chat_id][processing_message_id]['url']).get_json(['qualities', 'title', 'thumbnail', 'is_live', 'duration'])
                     user_data[chat_id][processing_message_id]['file_info'] = info
                     if info['is_live'] == True:
                         bot.edit_message_text(utils.get_string('specify_recording_duration', user_data[chat_id]['language']), chat_id, processing_message_id, reply_markup=utils.duration_keyboard(user_data[chat_id]['language'], processing_message_id))
@@ -152,6 +207,18 @@ def register_handlers(bot):
                 user_data[chat_id][processing_message_id]['audio_format'] = audio_quality
                 utils.process_request(chat_id, processing_message_id)
                 logger.info(f"Link from user {call.message.from_user.username} successfully processed!")
+            elif call.data.startswith("crop_time_"):
+                processing_message_id = call.data.split("_")[2]
+                bot.edit_message_text(utils.get_string('enter_start_time', user_data[chat_id]['language']), chat_id, processing_message_id )
+                bot.register_next_step_handler(call.message, handle_start_time, processing_message_id)
+            elif call.data.startswith("crop_mode_"):
+                processing_message_id = call.data.split("_")[2]
+                crop_mode = call.data.split("_")[3]
+                force_keyframes = (crop_mode == 'precise')
+                user_data[chat_id][processing_message_id]['force_keyframes'] = force_keyframes
+                available_qualities = user_data[chat_id][processing_message_id]['file_info']['qualities']
+                bot.edit_message_text(utils.get_string('select_quality', user_data[chat_id]['language']), chat_id, processing_message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id, processing_message_id, selected_video=user_data[chat_id][processing_message_id]['video_format'], selected_audio=user_data[chat_id][processing_message_id]['audio_format']))
+        
         except Exception as e:
             logger.error(f"Error processing callback query: {str(e)}")
             bot.send_message(chat_id, utils.get_string('processing_error', user_data[chat_id]['language']).format(error=str(e)), parse_mode='HTML')

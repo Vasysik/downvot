@@ -13,6 +13,28 @@ def get_string(key, lang_code=DEFAULT_LANGUAGE):
     if not key in LANGUAGES[lang_code]: return key
     return LANGUAGES[lang_code][key]
 
+def format_duration(seconds):
+    if not seconds:
+        return "00:00:00"
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    seconds = seconds % 60
+    return f"{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
+
+def parse_timestamp(timestamp):
+    if timestamp == '-':
+        return None
+    try:
+        parts = timestamp.split(':')
+        if len(parts) != 3:
+            raise ValueError
+        hours, minutes, seconds = map(int, parts)
+        if not (0 <= hours <= 99 and 0 <= minutes <= 59 and 0 <= seconds <= 59):
+            raise ValueError
+        return hours * 3600 + minutes * 60 + seconds
+    except ValueError:
+        raise ValueError("Invalid timestamp format. Use HH:MM:SS or '-'")
+
 def authorized_users_only(func):
     @wraps(func)
     def wrapper(message):
@@ -92,9 +114,16 @@ def process_request(chat_id, processing_message_id):
         duration = processing_data.get('duration', 30)
         video_format = processing_data['video_format']
         audio_format = processing_data['audio_format']
+        total_size = processing_data['total_size']
         username = user_data[chat_id]['username']
         info = processing_data['file_info']
         client = user_data[chat_id]['client']
+        start_time = processing_data.get('start_time', None)
+        end_time = processing_data.get('end_time', None)
+        force_keyframes = processing_data.get('force_keyframes', False)
+
+        if start_time: start_time = format_duration(start_time)
+        if end_time: end_time = format_duration(end_time)
 
         logger.info(f"Request details for user {username}: file_type={file_type}, video_format={video_format}, audio_format={audio_format}, duration={duration}")
 
@@ -107,48 +136,55 @@ def process_request(chat_id, processing_message_id):
             else:
                 task = client.send_task.get_live_audio(url=url, duration=duration, audio_format=audio_format)
         elif file_type == 'video':
-            task = client.send_task.get_video(url=url, video_format=video_format, audio_format=audio_format)
+            task = client.send_task.get_video(url=url, video_format=video_format, audio_format=audio_format, start_time=start_time, end_time=end_time, force_keyframes=force_keyframes)
+
         else:
-            task = client.send_task.get_audio(url=url, audio_format=audio_format)
+            task = client.send_task.get_audio(url=url, audio_format=audio_format, start_time=start_time, end_time=end_time, force_keyframes=force_keyframes)
 
         bot.edit_message_text(get_string('processing_request', user_data[chat_id]['language']), chat_id, processing_message_id)
         
         logger.info(f"Waiting for task result for user {username}")
         task_result = task.get_result()
-        file_obj = io.BytesIO(task_result.get_file())
-
         file_url = task_result.get_file_url()
-        file_size = file_obj.getbuffer().nbytes
+        
         max_file_size = 50 * 1024 * 1024  # 50 MB
+        file_size_out_of_range = False
+        if total_size > max_file_size:
+            file_size_out_of_range = True
+        else:
+            file_obj = io.BytesIO(task_result.get_file())
+            file_size = file_obj.getbuffer().nbytes
+            if file_size > max_file_size:
+                file_size_out_of_range = True
 
-        if file_size > max_file_size:
+        if file_size_out_of_range:
             logger.info(f"File size exceeds limit for user {username}. Sending download link.")
             if file_type == 'video': 
                 message = get_string('download_complete_video', user_data[chat_id]['language'])
-                caption = message.format(file_url=file_url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps")
+                caption = message.format(url=url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps")
                 bot.send_photo(chat_id, info['thumbnail'], caption=caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url))
             else: 
                 message = get_string('download_complete_audio', user_data[chat_id]['language'])
-                caption = message.format(file_url=file_url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps")
+                caption = message.format(url=url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps")
                 bot.send_message(chat_id, caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url))
         else:
             logger.info(f"Preparing to send file for user {username}")
             filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'][:48])
             filename = re.sub(r'\s+', '_', filename) + f'_DownVot'
             if file_type == 'video': 
-                filename += f"_{video_format_info['height']}p{video_format_info['fps']}.mp4"
+                filename += f"_{video_format_info['height']}p{video_format_info['fps']}.{file_url.split('.')[-1]}"
             else: 
-                filename += f"_{audio_format_info['abr']}kbps.mp3"
+                filename += f"_{audio_format_info['abr']}kbps.{file_url.split('.')[-1]}"
             file_obj.name = filename
 
             logger.info(f"Sending file '{filename}' to user {username}")
             if file_type == 'video': 
                 message = get_string('download_complete_video', user_data[chat_id]['language'])
-                caption = message.format(file_url=file_url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps")
+                caption = message.format(url=url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps")
                 bot.send_video(chat_id, file_obj, caption=caption, supports_streaming=True, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url))
             else: 
                 message = get_string('download_complete_audio', user_data[chat_id]['language'])
-                caption = message.format(file_url=file_url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps")
+                caption = message.format(url=url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps")
                 bot.send_audio(chat_id, file_obj, caption=caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url))
         logger.info(f"Request processing completed successfully for user {username}")
     except APIError as e:
@@ -215,7 +251,8 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
     else: 
         default_video = selected_video
     if user_data[chat_id][processing_message_id]['file_type'] == 'video':
-        total_size += qualities["video"][default_video]["filesize"]
+        if qualities["video"][default_video]["filesize"]: total_size += qualities["video"][default_video]["filesize"]
+        elif qualities["video"][default_video].get("filesize_approx", 0): total_size += qualities["video"][default_video]["filesize_approx"]
         video_format = qualities["video"][default_video]
         dynamic_range = 'HDR' if video_format['dynamic_range'] == 'HDR10' else ''
         keyboard.row(InlineKeyboardButton(f"{get_string('video_quality', user_data[chat_id]['language'])} {video_format['height']}p{video_format['fps']} {dynamic_range}", callback_data=f"select_video_quality_{processing_message_id}"))
@@ -226,9 +263,25 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
         user_data[chat_id][processing_message_id]['audio_format'] = default_audio
     else: 
         default_audio = selected_audio
-    total_size += qualities["audio"][default_audio]["filesize"]
+    if qualities["audio"][default_audio]["filesize"]: total_size += qualities["audio"][default_audio]["filesize"]
+    elif qualities["audio"][default_audio].get("filesize_approx", 0): total_size += qualities["audio"][default_audio]["filesize_approx"]
+
     audio_format = qualities["audio"][default_audio]
     keyboard.row(InlineKeyboardButton(f"{get_string('audio_quality', user_data[chat_id]['language'])} {audio_format['abr']}kbps", callback_data=f"select_audio_quality_{processing_message_id}"))
+
+    start_time = user_data[chat_id][processing_message_id].get('start_time')
+    end_time = user_data[chat_id][processing_message_id].get('end_time')
+    duration = user_data[chat_id][processing_message_id]['file_info']['duration']
+    start_str = format_duration(start_time) if start_time is not None else "00:00:00"
+    end_str = format_duration(end_time) if end_time is not None else format_duration(duration)
+    crop_mode_str = get_string('fast', user_data[chat_id]['language'])
+    if user_data[chat_id][processing_message_id].get('force_keyframes', False): crop_mode_str = get_string('precise', user_data[chat_id]['language'])
+    keyboard.row(InlineKeyboardButton(f"{get_string('select_range', user_data[chat_id]['language'])} {start_str}-{end_str}", callback_data=f"crop_time_{processing_message_id}"))
+
+    if start_time is not None or end_time is not None:
+        actual_duration = (end_time or duration) - (start_time or 0)
+        total_size = total_size * (actual_duration / duration)
+    user_data[chat_id][processing_message_id]['total_size'] = total_size
 
     keyboard.row(InlineKeyboardButton(f"{get_string('download_button', user_data[chat_id]['language'])} ≈{round(total_size / (1024 * 1024), 1)}MB", callback_data=f"quality_{processing_message_id}_{default_video}_{default_audio}"))
     return keyboard
@@ -247,8 +300,11 @@ def video_quality_keyboard(qualities, processing_message_id):
         if len(row) == 2:
             keyboard.row(*row)
             row = []
+        
         size = "≈?MB"
         if data['filesize']: size = f"≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
+        elif data.get('filesize_approx', 0): size = f"≈{round(data.get('filesize_approx', 0) / (1024 * 1024), 1)}MB"
+
         dynamic_range = 'HDR' if data['dynamic_range'] == 'HDR10' else ''
         label = f"{data['height']}p{data['fps']} {dynamic_range} {size}"
         row.append(InlineKeyboardButton(label, callback_data=f"video_quality_{quality}_{processing_message_id}"))
@@ -269,8 +325,11 @@ def audio_quality_keyboard(qualities, processing_message_id):
         if len(row) == 2:
             keyboard.row(*row)
             row = []
+        
         size = "≈?MB"
         if data['filesize']: size = f"≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
+        elif data.get('filesize_approx', 0): size = f"≈{round(data.get('filesize_approx', 0) / (1024 * 1024), 1)}MB"
+
         label = f"{data['abr']}kbps {size}"
         row.append(InlineKeyboardButton(label, callback_data=f"audio_quality_{quality}_{processing_message_id}"))
     if row:
@@ -313,3 +372,10 @@ def language_keyboard():
     if row:
         keyboard.row(*row)
     return keyboard
+
+def crop_keyboard(lang_code, processing_message_id):
+    keyboard = InlineKeyboardMarkup()
+    return keyboard.row(
+        InlineKeyboardButton(get_string('fast', lang_code), callback_data=f"crop_mode_{processing_message_id}_fast"),
+        InlineKeyboardButton(get_string('precise', lang_code), callback_data=f"crop_mode_{processing_message_id}_precise")
+    )
