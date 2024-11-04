@@ -266,7 +266,6 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
     if qualities["audio"][default_audio]["filesize"]: total_size += qualities["audio"][default_audio]["filesize"]
     elif qualities["audio"][default_audio].get("filesize_approx", 0): total_size += qualities["audio"][default_audio]["filesize_approx"]
 
-    user_data[chat_id][processing_message_id]['total_size'] = total_size
     audio_format = qualities["audio"][default_audio]
     keyboard.row(InlineKeyboardButton(f"{get_string('audio_quality', user_data[chat_id]['language'])} {audio_format['abr']}kbps", callback_data=f"select_audio_quality_{processing_message_id}"))
 
@@ -282,6 +281,7 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
     if start_time is not None or end_time is not None:
         actual_duration = (end_time or duration) - (start_time or 0)
         total_size = total_size * (actual_duration / duration)
+    user_data[chat_id][processing_message_id]['total_size'] = total_size
 
     keyboard.row(InlineKeyboardButton(f"{get_string('download_button', user_data[chat_id]['language'])} ≈{round(total_size / (1024 * 1024), 1)}MB", callback_data=f"quality_{processing_message_id}_{default_video}_{default_audio}"))
     return keyboard
