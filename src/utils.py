@@ -1,5 +1,5 @@
 from functools import wraps
-from config import load_config, AUTO_CREATE_KEY, AUTO_ALLOWED_CHANNEL, DEFAULT_LANGUAGE, LANGUAGES
+from config import load_config, AUTO_CREATE_KEY, AUTO_ALLOWED_CHANNEL, DEFAULT_LANGUAGE, LANGUAGES, MAX_GET_RESULT_RETRIES
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
 from yt_dlp_host_api.exceptions import APIError
 from state import user_data, bot, admin, api
@@ -144,7 +144,7 @@ def process_request(chat_id, processing_message_id):
         bot.edit_message_text(get_string('processing_request', user_data[chat_id]['language']), chat_id, processing_message_id)
         
         logger.info(f"Waiting for task result for user {username}")
-        task_result = task.get_result()
+        task_result = task.get_result(max_retries=MAX_GET_RESULT_RETRIES)
         file_url = task_result.get_file_url()
         
         max_file_size = 50 * 1024 * 1024  # 50 MB
