@@ -57,6 +57,8 @@ def inline_query(query):
             audio_format=best_audio[0]
         )
 
+        logger.info(f'inline tasks: {video_task.task_id} {audio_task.task_id}')
+
         video_result = video_task.get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
         audio_result = audio_task.get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
 
