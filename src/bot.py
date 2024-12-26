@@ -51,18 +51,15 @@ def inline_query(query):
             video_format=best_video[0],
             audio_format=best_audio[0]
         )
-        
+
         audio_task = client.send_task.get_audio(
             url=url,
             audio_format=best_audio[0]
         )
 
-        video_result = client.get_task_result(video_task.task_id).get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
-        audio_result = client.get_task_result(audio_task.task_id).get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
-
-        video_file = io.BytesIO(video_result.get_file())
-        audio_file = io.BytesIO(audio_result.get_file())
-
+        video_result = video_task.get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
+        audio_result = audio_task.get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
+        
         results = [
             types.InlineQueryResultVideo(
                 id="video",
