@@ -52,7 +52,7 @@ def inline_query(query):
                 id=f"video_{quality}",
                 title=f"Video {video_format['height']}p{video_format['fps']}",
                 description=f"Audio: {audio_format['abr']}kbps",
-                thumb_url=info['thumbnail'],
+                thumbnail_url=info['thumbnail'],
                 input_message_content=types.InputTextMessageContent(
                     message_text=f"Processing video: {info['title']}"
                 )
@@ -63,13 +63,14 @@ def inline_query(query):
                 id=f"audio_{quality}",
                 title=f"Audio {data['abr']}kbps",
                 description="Audio only",
-                thumb_url=info['thumbnail'],
+                thumbnail_url=info['thumbnail'],
                 input_message_content=types.InputTextMessageContent(
                     message_text=f"Processing audio: {info['title']}"
                 )
             ))
             
         bot.answer_inline_query(query.id, results)
+        
     except Exception as e:
         logger.error(f"Inline query error: {e}")
 
