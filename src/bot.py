@@ -63,19 +63,19 @@ def inline_query(query):
         results = [
             types.InlineQueryResultArticle(
                 id="video_link",
-                title=f"Video: {video_result.get_file_url()}",
+                title=f"Video: {url}",
                 description="Share video URL",
                 input_message_content=types.InputTextMessageContent(
-                    message_text=f"Video: {url}"
+                    message_text=f"Video: {video_result.get_file_url()}"
                 ),
                 thumbnail_url=info['thumbnail']
             ),
             types.InlineQueryResultArticle(
                 id="audio_link",
-                title=f"Audio: {audio_result.get_file_url}",
+                title=f"Audio: {url}",
                 description="Share audio URL",
                 input_message_content=types.InputTextMessageContent(
-                    message_text=f"Audio: {url}"
+                    message_text=f"Audio: {audio_result.get_file_url()}"
                 ),
                 thumbnail_url=info['thumbnail']
             )
