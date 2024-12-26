@@ -60,26 +60,24 @@ def inline_query(query):
         video_result = video_task.get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
         audio_result = audio_task.get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
 
-        video_file = io.BytesIO(video_result.get_file())
-        audio_file = io.BytesIO(audio_result.get_file())
-
         results = [
-            types.InlineQueryResultVideo(
-                id="video",
-                video_url=video_result.get_file_url(),
-                mime_type="video/mp4",
-                thumbnail_url=info['thumbnail'],
-                title=f"Video {best_video[1]['height']}p",
-                description=f"{best_video[1]['height']}p | {best_audio[1]['abr']}kbps",
-                video_width=best_video[1]['width'],
-                video_height=best_video[1]['height']
+            types.InlineQueryResultArticle(
+                id="video_link",
+                title=f"Video: {video_result.get_file_url()}",
+                description="Share video URL",
+                input_message_content=types.InputTextMessageContent(
+                    message_text=f"Video: {url}"
+                ),
+                thumbnail_url=info['thumbnail']
             ),
-            types.InlineQueryResultAudio(
-                id="audio",
-                audio_url=audio_result.get_file_url(),
-                title=f"Audio {best_audio[1]['abr']}kbps",
-                performer=info['title'],
-                audio_duration=info['duration']
+            types.InlineQueryResultArticle(
+                id="audio_link",
+                title=f"Audio: {audio_result.get_file_url}",
+                description="Share audio URL",
+                input_message_content=types.InputTextMessageContent(
+                    message_text=f"Audio: {url}"
+                ),
+                thumbnail_url=info['thumbnail']
             )
         ]
             
