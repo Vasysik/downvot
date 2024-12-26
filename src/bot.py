@@ -59,13 +59,13 @@ def inline_query(query):
 
         video_result = video_task.get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
         audio_result = audio_task.get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
-        
+
         results = [
             types.InlineQueryResultVideo(
                 id="video",
                 video_url=video_result.get_file_url(),
                 mime_type="video/mp4",
-                thumb_url=info['thumbnail'],
+                thumbail_url=info['thumbnail'],
                 title=f"Video {best_video[1]['height']}p",
                 description=f"{best_video[1]['height']}p | {best_audio[1]['abr']}kbps",
                 video_width=best_video[1]['width'],
