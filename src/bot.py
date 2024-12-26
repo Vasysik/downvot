@@ -109,7 +109,7 @@ def callback_download(call):
         )
         
         client = utils.get_or_create_client(call.from_user)
-        task_result = client.get_task_result(task_id).get_result(max_retries=5)
+        task_result = client.get_task_result(task_id).get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
         
         file_obj = io.BytesIO(task_result.get_file())
         file_size = file_obj.getbuffer().nbytes
