@@ -60,24 +60,27 @@ def inline_query(query):
         video_result = video_task.get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
         audio_result = audio_task.get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
 
+        video_bytes = video_result.get_file()
+        audio_bytes = audio_result.get_file()
+        
+        video_msg = bot.send_video(config['STORAGE_CHAT_ID'], video_bytes, caption=info['title'])
+        audio_msg = bot.send_audio(config['STORAGE_CHAT_ID'], audio_bytes, title=info['title'])
+
         results = [
-            types.InlineQueryResultArticle(
-                id="video_link",
-                title=f"Video: {url}",
-                description="Share video URL",
-                input_message_content=types.InputTextMessageContent(
-                    message_text=f"Video: {video_result.get_file_url()}"
-                ),
-                thumbnail_url=info['thumbnail']
+            types.InlineQueryResultVideo(
+                id="video",
+                video_file_id=video_msg.video.file_id,
+                title=f"Video: {info['title']}",
+                description="Send video file",
+                thumb_url=info['thumbnail'],
+                mime_type="video/mp4"
             ),
-            types.InlineQueryResultArticle(
-                id="audio_link",
-                title=f"Audio: {url}",
-                description="Share audio URL",
-                input_message_content=types.InputTextMessageContent(
-                    message_text=f"Audio: {audio_result.get_file_url()}"
-                ),
-                thumbnail_url=info['thumbnail']
+            types.InlineQueryResultAudio(
+                id="audio",
+                audio_file_id=audio_msg.audio.file_id,
+                title=f"Audio: {info['title']}",
+                performer=info.get('artist', ''),
+                thumb_url=info['thumbnail']
             )
         ]
             
