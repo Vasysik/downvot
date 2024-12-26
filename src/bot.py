@@ -41,10 +41,26 @@ def inline_query(query):
         info = client.get_info(url=url).get_json(['qualities', 'title', 'thumbnail', 'is_live', 'duration'])
         
         if info['is_live']:
-            return
+            results = [
+                types.InlineQueryResultArticle(
+                    id="1",
+                    title="Live Stream",
+                    description="Live streams are not supported",
+                    input_message_content=types.InputTextMessageContent(
+                        message_text="❌ Live streams are not supported"
+                    )
+                )
+            ]
+            return bot.answer_inline_query(query.id, results, cache_time=0)
         
         best_video = list(info["qualities"]["video"].items())[-1]
         best_audio = list(info["qualities"]["audio"].items())[-1]
+        
+        # Добавим отладочную информацию
+        print(f"Processing URL: {url}")
+        print(f"Title: {info['title']}")
+        print(f"Video quality: {best_video[1]['height']}p")
+        print(f"Audio quality: {best_audio[1]['abr']}kbps")
         
         video_task = client.send_task.get_video(
             url=url,
@@ -57,24 +73,34 @@ def inline_query(query):
             audio_format=best_audio[0]
         )
 
+        print("Waiting for video download...")
         video_result = video_task.get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
+        print("Waiting for audio download...")
         audio_result = audio_task.get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
-        
-        print(f"Video URL: {video_result.get_file_url()}")
-        print(f"Audio URL: {audio_result.get_file_url()}")
+
+        video_url = video_result.get_file_url()
+        audio_url = audio_result.get_file_url()
+
+        print(f"Video URL: {video_url}")
+        print(f"Audio URL: {audio_url}")
 
         results = [
             types.InlineQueryResultVideo(
                 id="1",
-                video_url=video_result.get_file_url(),
+                video_url=video_url,
                 mime_type="video/mp4",
                 thumbnail_url=info['thumbnail'],
-                title="Video"
+                title=f"{info['title']} - {best_video[1]['height']}p",
+                description=f"Video Quality: {best_video[1]['height']}p\nAudio Quality: {best_audio[1]['abr']}kbps\nDuration: {info['duration']} seconds",
+                video_width=best_video[1]['width'],
+                video_height=best_video[1]['height']
             ),
             types.InlineQueryResultAudio(
                 id="2",
-                audio_url=audio_result.get_file_url(),
-                title="Audio"
+                audio_url=audio_url,
+                title=info['title'],
+                performer=f"Audio {best_audio[1]['abr']}kbps",
+                audio_duration=info['duration']
             )
         ]
             
@@ -84,6 +110,18 @@ def inline_query(query):
         logger.error(f"Inline query error: {e}")
         import traceback
         logger.error(traceback.format_exc())
+        
+        results = [
+            types.InlineQueryResultArticle(
+                id="1",
+                title="Error",
+                description=str(e),
+                input_message_content=types.InputTextMessageContent(
+                    message_text=f"❌ Error occurred: {str(e)}"
+                )
+            )
+        ]
+        bot.answer_inline_query(query.id, results, cache_time=0)
 
 if __name__ == "__main__":
     config = load_config()
