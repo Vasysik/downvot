@@ -74,7 +74,7 @@ def inline_query(query):
                 audio_url=audio_result.get_file_url(),
                 title=f"Audio: {info['title']}",
                 performer=info.get('artist', ''),
-                thumb_url=info['thumbnail']
+                thumbnail_url=info['thumbnail']
             )
         ]
             
