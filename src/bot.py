@@ -57,36 +57,29 @@ def inline_query(query):
             audio_format=best_audio[0]
         )
 
+        video_result = client.get_task_result(video_task.task_id).get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
+        audio_result = client.get_task_result(audio_task.task_id).get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
+
+        video_file = io.BytesIO(video_result.get_file())
+        audio_file = io.BytesIO(audio_result.get_file())
+
         results = [
-            types.InlineQueryResultArticle(
-                id=f"video",
-                title=f"Send Video",
+            types.InlineQueryResultVideo(
+                id="video",
+                video_url=video_result.get_file_url(),
+                mime_type="video/mp4",
+                thumb_url=info['thumbnail'],
+                title=f"Video {best_video[1]['height']}p",
                 description=f"{best_video[1]['height']}p | {best_audio[1]['abr']}kbps",
-                thumbnail_url=info['thumbnail'],
-                input_message_content=types.InputTextMessageContent(
-                    message_text=""
-                ),
-                reply_markup=types.InlineKeyboardMarkup().add(
-                    types.InlineKeyboardButton(
-                        text="Send Video",
-                        callback_data=f"send_video_{video_task.task_id}"
-                    )
-                )
+                video_width=best_video[1]['width'],
+                video_height=best_video[1]['height']
             ),
-            types.InlineQueryResultArticle(
-                id=f"audio",
-                title=f"Send Audio",
-                description=f"{best_audio[1]['abr']}kbps",
-                thumbnail_url=info['thumbnail'],
-                input_message_content=types.InputTextMessageContent(
-                    message_text=""
-                ),
-                reply_markup=types.InlineKeyboardMarkup().add(
-                    types.InlineKeyboardButton(
-                        text="Send Audio", 
-                        callback_data=f"send_audio_{audio_task.task_id}"
-                    )
-                )
+            types.InlineQueryResultAudio(
+                id="audio",
+                audio_url=audio_result.get_file_url(),
+                title=f"Audio {best_audio[1]['abr']}kbps",
+                performer=info['title'],
+                audio_duration=info['duration']
             )
         ]
             
@@ -94,42 +87,6 @@ def inline_query(query):
         
     except Exception as e:
         logger.error(f"Inline query error: {e}")
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith(("send_video_", "send_audio_")))
-def callback_download(call):
-    try:
-        action, task_id = call.data.split("_", 2)
-        
-        bot.answer_callback_query(call.id, text="Downloading...", show_alert=False)
-        
-        client = utils.get_or_create_client(call.from_user)
-        task_result = client.get_task_result(task_id).get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
-        
-        file_obj = io.BytesIO(task_result.get_file())
-        file_size = file_obj.getbuffer().nbytes
-        
-        if file_size > 50 * 1024 * 1024:  # 50MB limit
-            file_url = task_result.get_file_url()
-            keyboard = types.InlineKeyboardMarkup()
-            keyboard.add(types.InlineKeyboardButton(text="Download Link", url=file_url))
-            bot.send_message(
-                chat_id=call.message.chat.id,
-                text="File is too large to send directly. Use the download link:",
-                reply_markup=keyboard
-            )
-        else:
-            if action == "send_video":
-                bot.send_video(call.message.chat.id, file_obj, supports_streaming=True)
-            else:
-                bot.send_audio(call.message.chat.id, file_obj)
-                
-    except Exception as e:
-        logger.error(f"Download error: {e}")
-        bot.answer_callback_query(
-            call.id,
-            text=f"Error occurred: {str(e)}",
-            show_alert=True
-        )
 
 if __name__ == "__main__":
     config = load_config()
