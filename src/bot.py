@@ -64,7 +64,9 @@ def inline_query(query):
         audio_bytes = audio_result.get_file()
 
         video_msg = bot.send_video(bot.get_chat(query.from_user.id).id, video_bytes, caption=info['title'])
+        logger.info(video_msg.id)
         audio_msg = bot.send_audio(bot.get_chat(query.from_user.id).id, audio_bytes, title=info['title'])
+        logger.info(audio_msg.id)
 
         results = [
             types.InlineQueryResultVideo(
