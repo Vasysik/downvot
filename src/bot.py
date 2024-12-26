@@ -59,24 +59,22 @@ def inline_query(query):
 
         video_result = video_task.get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
         audio_result = audio_task.get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
+        
+        print(f"Video URL: {video_result.get_file_url()}")
+        print(f"Audio URL: {audio_result.get_file_url()}")
 
         results = [
             types.InlineQueryResultVideo(
-                id="video",
+                id="1",
                 video_url=video_result.get_file_url(),
                 mime_type="video/mp4",
                 thumbnail_url=info['thumbnail'],
-                title=f"Video {best_video[1]['height']}p",
-                description=f"{best_video[1]['height']}p | {best_audio[1]['abr']}kbps",
-                video_width=best_video[1]['width'],
-                video_height=best_video[1]['height']
+                title="Video"
             ),
             types.InlineQueryResultAudio(
-                id="audio",
+                id="2",
                 audio_url=audio_result.get_file_url(),
-                title=f"Audio {best_audio[1]['abr']}kbps",
-                performer=info['title'],
-                audio_duration=info['duration']
+                title="Audio"
             )
         ]
             
@@ -84,6 +82,8 @@ def inline_query(query):
         
     except Exception as e:
         logger.error(f"Inline query error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
 
 if __name__ == "__main__":
     config = load_config()
