@@ -4,6 +4,7 @@ from config import load_config
 from handlers import register_handlers
 from state import bot
 import utils
+import io
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -35,105 +36,100 @@ def inline_query(query):
         source = utils.detect_source(url)
         if not source:
             return
-            
-        # Получаем информацию о видео
+        
         client = utils.get_or_create_client(query.from_user)
         info = client.get_info(url=url).get_json(['qualities', 'title', 'thumbnail', 'is_live', 'duration'])
         
         if info['is_live']:
             return
-            
-        results = []
         
-        # Расчет размера для видео (берем лучшее качество)
-        video_format = list(info["qualities"]["video"].items())[-1][1]
-        audio_format = list(info["qualities"]["audio"].items())[-1][1]
-        video_size = 0
-        if video_format['filesize']: 
-            video_size = video_format['filesize']
-        elif video_format.get('filesize_approx', 0): 
-            video_size = video_format['filesize_approx']
-        if audio_format['filesize']: 
-            video_size += audio_format['filesize']
-        elif audio_format.get('filesize_approx', 0): 
-            video_size += audio_format.get('filesize_approx', 0)
+        best_video = list(info["qualities"]["video"].items())[-1]
+        best_audio = list(info["qualities"]["audio"].items())[-1]
         
-        # Расчет размера для аудио
-        audio_size = 0
-        if audio_format['filesize']: 
-            audio_size = audio_format['filesize']
-        elif audio_format.get('filesize_approx', 0): 
-            audio_size = audio_format.get('filesize_approx', 0)
+        video_task = client.send_task.get_video(
+            url=url,
+            video_format=best_video[0],
+            audio_format=best_audio[0]
+        )
         
-        # Добавляем видео вариант
-        results.append(types.InlineQueryResultArticle(
-            id=f"video",
-            title=f"Download Video",
-            description=f"Size: ≈{round(video_size / (1024 * 1024), 1)}MB",
-            thumbnail_url=info['thumbnail'],
-            input_message_content=types.InputTextMessageContent(
-                message_text="⏳ Downloading..."
+        audio_task = client.send_task.get_audio(
+            url=url,
+            audio_format=best_audio[0]
+        )
+
+        results = [
+            types.InlineQueryResultArticle(
+                id=f"video",
+                title=f"Send Video",
+                description=f"{best_video[1]['height']}p | {best_audio[1]['abr']}kbps",
+                thumbnail_url=info['thumbnail'],
+                input_message_content=types.InputTextMessageContent(
+                    message_text=""
+                ),
+                reply_markup=types.InlineKeyboardMarkup().add(
+                    types.InlineKeyboardButton(
+                        text="Send Video",
+                        callback_data=f"send_video_{video_task.task_id}"
+                    )
+                )
+            ),
+            types.InlineQueryResultArticle(
+                id=f"audio",
+                title=f"Send Audio",
+                description=f"{best_audio[1]['abr']}kbps",
+                thumbnail_url=info['thumbnail'],
+                input_message_content=types.InputTextMessageContent(
+                    message_text=""
+                ),
+                reply_markup=types.InlineKeyboardMarkup().add(
+                    types.InlineKeyboardButton(
+                        text="Send Audio", 
+                        callback_data=f"send_audio_{audio_task.task_id}"
+                    )
+                )
             )
-        ))
-        
-        # Добавляем аудио вариант
-        results.append(types.InlineQueryResultArticle(
-            id=f"audio",
-            title=f"Download Audio",
-            description=f"Size: ≈{round(audio_size / (1024 * 1024), 1)}MB",
-            thumbnail_url=info['thumbnail'],
-            input_message_content=types.InputTextMessageContent(
-                message_text="⏳ Downloading..."
-            )
-        ))
+        ]
             
-        bot.answer_inline_query(query.id, results)
+        bot.answer_inline_query(query.id, results, cache_time=0)
         
     except Exception as e:
         logger.error(f"Inline query error: {e}")
 
-# Обработчик выбранного результата
-@bot.chosen_inline_handler(func=lambda chosen_inline_result: True)
-def chosen_inline_handler(chosen_inline_result):
+@bot.callback_query_handler(func=lambda call: call.data.startswith(("send_video_", "send_audio_")))
+def callback_download(call):
     try:
-        url = chosen_inline_result.query
-        result_id = chosen_inline_result.result_id
-        inline_message_id = chosen_inline_result.inline_message_id
+        action, task_id = call.data.split("_", 2)
         
-        is_video = result_id == "video"
+        bot.answer_callback_query(call.id, text="Downloading...", show_alert=False)
         
-        client = utils.get_or_create_client(chosen_inline_result.from_user)
-        info = client.get_info(url=url).get_json(['qualities', 'title'])
+        client = utils.get_or_create_client(call.from_user)
+        task_result = client.get_task_result(task_id).get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
         
-        # Выбираем лучшее качество
-        video_format = list(info["qualities"]["video"].items())[-1][0] if is_video else None
-        audio_format = list(info["qualities"]["audio"].items())[-1][0]
+        file_obj = io.BytesIO(task_result.get_file())
+        file_size = file_obj.getbuffer().nbytes
         
-        # Создаем задачу на скачивание
-        if is_video:
-            task = client.send_task.get_video(url=url, video_format=video_format, audio_format=audio_format)
-        else:
-            task = client.send_task.get_audio(url=url, audio_format=audio_format)
-            
-        # Ждем результат
-        task_result = task.get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
-        file_url = task_result.get_file_url()
-        
-        # Обновляем сообщение с ссылкой или файлом
-        bot.edit_inline_message_text(
-            text=f"✅ Ready to send!\n{info['title']}\n\n🔗 {file_url}",
-            inline_message_id=inline_message_id
-        )
-        
-    except Exception as e:
-        logger.error(f"Chosen inline result error: {e}")
-        try:
-            bot.edit_inline_message_text(
-                text=f"❌ Error: {str(e)}",
-                inline_message_id=inline_message_id
+        if file_size > 50 * 1024 * 1024:  # 50MB limit
+            file_url = task_result.get_file_url()
+            keyboard = types.InlineKeyboardMarkup()
+            keyboard.add(types.InlineKeyboardButton(text="Download Link", url=file_url))
+            bot.send_message(
+                chat_id=call.message.chat.id,
+                text="File is too large to send directly. Use the download link:",
+                reply_markup=keyboard
             )
-        except:
-            pass
+        else:
+            if action == "send_video":
+                bot.send_video(call.message.chat.id, file_obj, supports_streaming=True)
+            else:
+                bot.send_audio(call.message.chat.id, file_obj)
+                
+    except Exception as e:
+        logger.error(f"Download error: {e}")
+        bot.answer_callback_query(
+            call.id,
+            text=f"Error occurred: {str(e)}",
+            show_alert=True
+        )
 
 if __name__ == "__main__":
     config = load_config()
