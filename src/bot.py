@@ -62,9 +62,9 @@ def inline_query(query):
 
         video_bytes = video_result.get_file()
         audio_bytes = audio_result.get_file()
-        
-        video_msg = bot.send_video(config['STORAGE_CHAT_ID'], video_bytes, caption=info['title'])
-        audio_msg = bot.send_audio(config['STORAGE_CHAT_ID'], audio_bytes, title=info['title'])
+
+        video_msg = bot.send_video(bot.get_chat(query.from_user.id), video_bytes, caption=info['title'])
+        audio_msg = bot.send_audio(bot.get_chat(query.from_user.id), audio_bytes, title=info['title'])
 
         results = [
             types.InlineQueryResultVideo(
@@ -72,7 +72,7 @@ def inline_query(query):
                 video_file_id=video_msg.video.file_id,
                 title=f"Video: {info['title']}",
                 description="Send video file",
-                thumb_url=info['thumbnail'],
+                thumbnail_url=info['thumbnail'],
                 mime_type="video/mp4"
             ),
             types.InlineQueryResultAudio(
