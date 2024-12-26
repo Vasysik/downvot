@@ -383,3 +383,12 @@ def crop_keyboard(lang_code, processing_message_id):
         InlineKeyboardButton(get_string('fast', lang_code), callback_data=f"crop_mode_{processing_message_id}_fast"),
         InlineKeyboardButton(get_string('precise', lang_code), callback_data=f"crop_mode_{processing_message_id}_precise")
     )
+
+def get_or_create_client(user):
+    try:
+        return api.get_client(admin.get_key(f'{user.username}_downvot'))
+    except APIError:
+        if AUTO_CREATE_KEY:
+            admin.create_key(f'{user.username}_downvot', ["get_video", "get_audio", "get_info"])
+            return api.get_client(admin.get_key(f'{user.username}_downvot'))
+        raise
