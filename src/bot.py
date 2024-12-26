@@ -67,7 +67,7 @@ def inline_query(query):
             types.InlineQueryResultCachedVideo(
                 id="1",
                 video_file_id=video_file,
-                caption=f"Video {best_video[1]['height']}p"
+                title=f"Video {best_video[1]['height']}p"
             ),
             types.InlineQueryResultCachedAudio(
                 id="2",
