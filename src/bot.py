@@ -60,18 +60,10 @@ def inline_query(query):
         video_result = video_task.get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
         audio_result = audio_task.get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
 
-        video_bytes = video_result.get_file()
-        audio_bytes = audio_result.get_file()
-
-        video_msg = bot.send_video(bot.get_chat(query.from_user.id).id, video_bytes, caption=info['title'])
-        logger.info(video_msg.id)
-        audio_msg = bot.send_audio(bot.get_chat(query.from_user.id).id, audio_bytes, title=info['title'])
-        logger.info(audio_msg.id)
-
         results = [
             types.InlineQueryResultVideo(
                 id="video",
-                video_file_id=video_msg.video.file_id,
+                video_url=video_result.get_file_url(),
                 title=f"Video: {info['title']}",
                 description="Send video file",
                 thumbnail_url=info['thumbnail'],
@@ -79,7 +71,7 @@ def inline_query(query):
             ),
             types.InlineQueryResultAudio(
                 id="audio",
-                audio_file_id=audio_msg.audio.file_id,
+                audio_url=audio_result.get_file_url(),
                 title=f"Audio: {info['title']}",
                 performer=info.get('artist', ''),
                 thumb_url=info['thumbnail']
