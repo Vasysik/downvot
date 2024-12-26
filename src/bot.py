@@ -68,7 +68,7 @@ def inline_query(query):
                 id="video",
                 video_url=video_result.get_file_url(),
                 mime_type="video/mp4",
-                thumb_url=info['thumbnail'],
+                thumbnail_url=info['thumbnail'],
                 title=f"Video {best_video[1]['height']}p",
                 description=f"{best_video[1]['height']}p | {best_audio[1]['abr']}kbps",
                 video_width=best_video[1]['width'],
