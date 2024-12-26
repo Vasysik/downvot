@@ -51,35 +51,35 @@ def inline_query(query):
             video_format=best_video[0],
             audio_format=best_audio[0]
         )
+
         audio_task = client.send_task.get_audio(
             url=url,
             audio_format=best_audio[0]
         )
-        
+
         video_result = video_task.get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
         audio_result = audio_task.get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
-        
-        video_msg = bot.send_video(
-            chat_id=query.from_user.id,
-            video=video_result.get_file(),
-            caption=f"Video {best_video[1]['height']}p"
-        )
-        audio_msg = bot.send_audio(
-            chat_id=query.from_user.id,
-            audio=audio_result.get_file(),
-            caption=f"Audio {best_audio[1]['abr']}kbps"
-        )
-        
+
+        video_file = io.BytesIO(video_result.get_file())
+        audio_file = io.BytesIO(audio_result.get_file())
+
         results = [
-            types.InlineQueryResultCachedVideo(
-                id="1",
-                video_file_id=video_msg.video.file_id,
-                title=f"Video {best_video[1]['height']}p"
+            types.InlineQueryResultVideo(
+                id="video",
+                video_url=video_result.get_file_url(),
+                mime_type="video/mp4",
+                thumb_url=info['thumbnail'],
+                title=f"Video {best_video[1]['height']}p",
+                description=f"{best_video[1]['height']}p | {best_audio[1]['abr']}kbps",
+                video_width=best_video[1]['width'],
+                video_height=best_video[1]['height']
             ),
-            types.InlineQueryResultCachedAudio(
-                id="2",
-                audio_file_id=audio_msg.audio.file_id,
-                caption=f"Audio {best_audio[1]['abr']}kbps"
+            types.InlineQueryResultAudio(
+                id="audio",
+                audio_url=audio_result.get_file_url(),
+                title=f"Audio {best_audio[1]['abr']}kbps",
+                performer=info['title'],
+                audio_duration=info['duration']
             )
         ]
             
