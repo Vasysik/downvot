@@ -65,17 +65,15 @@ def inline_query(query):
         results = [
             types.InlineQueryResultVideo(
                 id="video",
-                video_url=video_result.get_file_url(),
+                video_url=f'{video_result.get_file_url()}?raw=true',
                 title=f"Video: {info['title']}",
-                description="Send video file",
                 thumbnail_url=info['thumbnail'],
                 mime_type="video/mp4"
             ),
             types.InlineQueryResultAudio(
                 id="audio",
-                audio_url=audio_result.get_file_url(),
-                title=f"Audio: {info['title']}",
-                performer=info.get('artist', '')
+                audio_url=f'{audio_result.get_file_url()}?raw=true',
+                title=f"Audio: {info['title']}"
             )
         ]
             
