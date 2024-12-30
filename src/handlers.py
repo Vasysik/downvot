@@ -1,4 +1,5 @@
 from state import user_data
+from youtube_search import YoutubeSearch
 import utils, logging
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,23 @@ def register_handlers(bot):
     def language_command(message):
         chat_id = message.chat.id
         bot.reply_to(message, utils.get_string('select_language', user_data[chat_id]['language']), reply_markup=utils.language_keyboard())
+
+    @bot.message_handler(commands=['search'])
+    @utils.authorized_users_only
+    def search_videos(message):
+        query = message.text[len('/search '):].strip()
+        if not query:
+            bot.reply_to(message, utils.get_string('enter_search_query', user_data[message.chat.id]['language']))
+            return
+
+        try:
+            results = YoutubeSearch(query, max_results=5).to_dict()
+            user_data[message.chat.id]['search_results'] = results
+            user_data[message.chat.id]['current_index'] = 0
+            utils.show_search_result(message.chat.id, 0)
+        except Exception as e:
+            logger.error(f"Error during YouTube search: {e}")
+            bot.reply_to(message, utils.get_string('search_error', user_data[message.chat.id]['language']))
     
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_"))
     @utils.authorized_users_only
@@ -218,6 +236,22 @@ def register_handlers(bot):
                 user_data[chat_id][processing_message_id]['force_keyframes'] = force_keyframes
                 available_qualities = user_data[chat_id][processing_message_id]['file_info']['qualities']
                 bot.edit_message_text(utils.get_string('select_quality', user_data[chat_id]['language']), chat_id, processing_message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id, processing_message_id, selected_video=user_data[chat_id][processing_message_id]['video_format'], selected_audio=user_data[chat_id][processing_message_id]['audio_format']))
+            elif call.data.startswith("prev_result_"):
+                current_index = int(call.data.split("_")[-1])
+                user_data[call.message.chat.id]['current_index'] = max(0, current_index - 1)
+                utils.show_search_result(call.message.chat.id, user_data[call.message.chat.id]['current_index'])
+
+            elif call.data.startswith("next_result_"):
+                current_index = int(call.data.split("_")[-1])
+                user_data[call.message.chat.id]['current_index'] = min(len(user_data[call.message.chat.id]['search_results']) - 1, current_index + 1)
+                utils.show_search_result(call.message.chat.id, user_data[call.message.chat.id]['current_index'])
+
+            elif call.data.startswith("select_result_"):
+                index = int(call.data.split("_")[-1])
+                result = user_data[call.message.chat.id]['search_results'][index]
+                link = f"https://www.youtube.com{result['url_suffix']}"
+                bot.send_message(call.message.chat.id, utils.get_string('downloading', user_data[call.message.chat.id]['language']))
+                utils.process_request(call.message.chat.id, link)
         
         except Exception as e:
             logger.error(f"Error processing callback query: {str(e)}")

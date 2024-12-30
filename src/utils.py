@@ -392,3 +392,23 @@ def get_or_create_client(user):
             admin.create_key(f'{user.username}_downvot', ["get_video", "get_audio", "get_info"])
             return api.get_client(admin.get_key(f'{user.username}_downvot'))
         raise
+
+def show_search_result(chat_id, index):
+    results = user_data[chat_id]['search_results']
+    if index < 0 or index >= len(results):
+        return
+
+    result = results[index]
+    title = result['title']
+    link = f"https://www.youtube.com{result['url_suffix']}"
+    thumbnail = result['thumbnails'][0]
+    description = result.get('long_desc', 'No description available.')
+
+    keyboard = InlineKeyboardMarkup()
+    keyboard.row(
+        InlineKeyboardButton("<-", callback_data=f"prev_result_{index}"),
+        InlineKeyboardButton("Выбрать", callback_data=f"select_result_{index}"),
+        InlineKeyboardButton("->", callback_data=f"next_result_{index}")
+    )
+
+    bot.send_photo(chat_id, thumbnail, caption=f"{title}\n{description}\n{link}", reply_markup=keyboard)
