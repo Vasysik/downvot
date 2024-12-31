@@ -5,6 +5,7 @@
     "ALLOWED_USERS": ["<telegram-username>"],
     "AUTO_CREATE_KEY": true,
     "MAX_GET_RESULT_RETRIES": 480,
+    "MAX_SEARCH_RESULTS": 50,
     "AUTO_ALLOWED_CHANNEL": "",
     "DEFAULT_LANGUAGE": "ru",
     "INLINE_MODE": true

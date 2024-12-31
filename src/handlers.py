@@ -1,5 +1,6 @@
 from state import user_data
 from youtube_search import YoutubeSearch
+from config import MAX_SEARCH_RESULTS
 import utils, logging
 
 logger = logging.getLogger(__name__)
@@ -92,7 +93,7 @@ def register_handlers(bot):
             return
         searching_message = bot.send_message(message.chat.id, utils.get_string('searching', user_data[message.chat.id]['language']))
         try:
-            results = YoutubeSearch(query, max_results=20).to_dict()
+            results = YoutubeSearch(query, max_results=MAX_SEARCH_RESULTS).to_dict()
             if not results:
                 bot.edit_message_text(
                     utils.get_string('no_results', user_data[message.chat.id]['language']),
@@ -148,7 +149,7 @@ def register_handlers(bot):
         else:
             searching_message = bot.send_message(message.chat.id, utils.get_string('searching', user_data[message.chat.id]['language']))
             try:
-                results = YoutubeSearch(message.text, max_results=20).to_dict()
+                results = YoutubeSearch(message.text, max_results=MAX_SEARCH_RESULTS).to_dict()
                 if not results:
                     bot.edit_message_text(
                         utils.get_string('no_results', user_data[message.chat.id]['language']),
