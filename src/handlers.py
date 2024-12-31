@@ -59,15 +59,27 @@ def register_handlers(bot):
         if not query:
             bot.reply_to(message, utils.get_string('enter_search_query', user_data[message.chat.id]['language']))
             return
-
+        searching_message = bot.send_message(message.chat.id, utils.get_string('searching', user_data[message.chat.id]['language']))
         try:
             results = YoutubeSearch(query, max_results=5).to_dict()
+            if not results:
+                bot.edit_message_text(
+                    utils.get_string('no_results', user_data[message.chat.id]['language']),
+                    chat_id=message.chat.id,
+                    message_id=searching_message.message_id
+                )
+                return
             user_data[message.chat.id]['search_results'] = results
             user_data[message.chat.id]['current_index'] = 0
-            utils.show_search_result(message.chat.id, 0)
+
+            utils.show_search_result(message.chat.id, 0, searching_message.message_id)
         except Exception as e:
             logger.error(f"Error during YouTube search: {e}")
-            bot.reply_to(message, utils.get_string('search_error', user_data[message.chat.id]['language']))
+            bot.edit_message_text(
+                utils.get_string('search_error', user_data[message.chat.id]['language']),
+                chat_id=message.chat.id,
+                message_id=searching_message.message_id
+            )
     
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_"))
     @utils.authorized_users_only
