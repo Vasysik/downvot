@@ -393,23 +393,26 @@ def get_or_create_client(user):
             return api.get_client(admin.get_key(f'{user.username}_downvot'))
         raise
 
-def show_search_result(chat_id, index, message_id):
+def show_search_result(chat_id, lang_code, index, message_id):
     results = user_data[chat_id]['search_results']
-    if index < 0 or index >= len(results):
-        return
+    total_results = len(results)
+    
+    if index < 0:
+        index = 0
+    elif index >= total_results:
+        index = total_results - 1
 
     result = results[index]
     title = result['title']
     link = f"https://www.youtube.com{result['url_suffix']}"
     thumbnail = result['thumbnails'][0]
-    description = result.get('long_desc', 'No description available.')
 
     keyboard = InlineKeyboardMarkup()
     keyboard.row(
-        InlineKeyboardButton("<-", callback_data=f"prev_result_{index}"),
-        InlineKeyboardButton("Выбрать", callback_data=f"select_result_{index}"),
-        InlineKeyboardButton("->", callback_data=f"next_result_{index}")
+        InlineKeyboardButton("<-" if index > 0 else " ", callback_data=f"prev_result_{index}" if index > 0 else "noop"),
+        InlineKeyboardButton(get_string('select', lang_code), callback_data=f"select_result_{index}"),
+        InlineKeyboardButton("->" if index < total_results - 1 else " ", callback_data=f"next_result_{index}" if index < total_results - 1 else "noop")
     )
 
-    media = InputMediaPhoto(thumbnail, caption=f"{title}\n{description}\n{link}")
+    media = InputMediaPhoto(thumbnail, caption=f"<a href='{link}'>{title}</a>", parse_mode='HTML')
     bot.edit_message_media(media=media, chat_id=chat_id, message_id=message_id, reply_markup=keyboard)

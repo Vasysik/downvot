@@ -61,7 +61,7 @@ def register_handlers(bot):
             return
         searching_message = bot.send_message(message.chat.id, utils.get_string('searching', user_data[message.chat.id]['language']))
         try:
-            results = YoutubeSearch(query, max_results=5).to_dict()
+            results = YoutubeSearch(query, max_results=20).to_dict()
             if not results:
                 bot.edit_message_text(
                     utils.get_string('no_results', user_data[message.chat.id]['language']),
@@ -72,7 +72,7 @@ def register_handlers(bot):
             user_data[message.chat.id]['search_results'] = results
             user_data[message.chat.id]['current_index'] = 0
 
-            utils.show_search_result(message.chat.id, 0, searching_message.message_id)
+            utils.show_search_result(message.chat.id, user_data[message.chat.id]['language'], 0, searching_message.message_id)
         except Exception as e:
             logger.error(f"Error during YouTube search: {e}")
             bot.edit_message_text(
@@ -251,11 +251,11 @@ def register_handlers(bot):
             elif call.data.startswith("prev_result_"):
                 current_index = int(call.data.split("_")[-1])
                 user_data[call.message.chat.id]['current_index'] = max(0, current_index - 1)
-                utils.show_search_result(call.message.chat.id, user_data[call.message.chat.id]['current_index'], call.message.message_id)
+                utils.show_search_result(call.message.chat.id, user_data[chat_id]['language'], user_data[call.message.chat.id]['current_index'], call.message.message_id)
             elif call.data.startswith("next_result_"):
                 current_index = int(call.data.split("_")[-1])
                 user_data[call.message.chat.id]['current_index'] = min(len(user_data[call.message.chat.id]['search_results']) - 1, current_index + 1)
-                utils.show_search_result(call.message.chat.id, user_data[call.message.chat.id]['current_index'], call.message.message_id)
+                utils.show_search_result(call.message.chat.id, user_data[chat_id]['language'], user_data[call.message.chat.id]['current_index'], call.message.message_id)
             elif call.data.startswith("select_result_"):
                 index = int(call.data.split("_")[-1])
                 result = user_data[call.message.chat.id]['search_results'][index]
