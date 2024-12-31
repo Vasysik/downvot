@@ -62,7 +62,7 @@ def register_handlers(bot):
     @utils.authorized_users_only
     def download_video(message):
         link = message.text[len('/download '):].strip()
-        if not link:
+        if not link or not link.startswith(('http://', 'https://')):
             bot.reply_to(message, utils.get_string('send_video_link', user_data[chat_id]['language']))
             return
         
