@@ -48,7 +48,7 @@
     "precise": "Precyzyjna",
     "more_requests": "Jeśli masz więcej próśb, proszę wysłać nowy link.",
     "language_changed": "Język został pomyślnie zmieniony na polski.",
-    "help_text": "Dostępne polecenia:\n/pomoc - pokaż tę wiadomość\n/szukaj <żądanie> - wyszukaj film na YouTube\n/pobierz <link> - pobierz film z linku\n\nMożesz wysłać link lub tytuł bezpośrednio do przetworzenia przez bota.",
+    "help_text": "Dostępne polecenia:\n/language - zmień język bota\n/pomoc - pokaż tę wiadomość\n/szukaj <żądanie> - wyszukaj film na YouTube\n/pobierz <link> - pobierz film z linku\n\nMożesz wysłać link lub tytuł bezpośrednio do przetworzenia przez bota.",
     "searching": "Wyszukiwanie...",
     "no_results": "Nie znaleziono żadnych wyników dla Twojego wyszukiwania.",
     "search_error": "Wystąpił błąd podczas wyszukiwania: {error}",

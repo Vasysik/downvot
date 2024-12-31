@@ -48,7 +48,7 @@
     "precise": "Precise",
     "more_requests": "If you have more requests, please send a new link.",
     "language_changed": "Language successfully changed to English.",
-    "help_text": "Available commands:\n/help - show this message\n/search <query> - search for videos on YouTube\n/download <link> - download video by link\n\nYou can send a link or title directly for the bot to process.",
+    "help_text": "Available commands:\n/language - change the bot language\n/help - show this message\n/search <query> - search for videos on YouTube\n/download <link> - download video by link\n\nYou can send a link or title directly for the bot to process.",
     "searching": "Searching...",
     "no_results": "Nothing was found for your request.",
     "search_error": "An error occurred while searching: {error}",
