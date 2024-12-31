@@ -1,6 +1,6 @@
 from functools import wraps
 from config import load_config, AUTO_CREATE_KEY, AUTO_ALLOWED_CHANNEL, DEFAULT_LANGUAGE, LANGUAGES, MAX_GET_RESULT_RETRIES
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery, InputMediaPhoto
 from yt_dlp_host_api.exceptions import APIError
 from state import user_data, bot, admin, api
 import logging, io, re, json
@@ -393,7 +393,7 @@ def get_or_create_client(user):
             return api.get_client(admin.get_key(f'{user.username}_downvot'))
         raise
 
-def show_search_result(chat_id, index):
+def show_search_result(chat_id, index, message_id):
     results = user_data[chat_id]['search_results']
     if index < 0 or index >= len(results):
         return
@@ -411,4 +411,5 @@ def show_search_result(chat_id, index):
         InlineKeyboardButton("->", callback_data=f"next_result_{index}")
     )
 
-    bot.send_photo(chat_id, thumbnail, caption=f"{title}\n{description}\n{link}", reply_markup=keyboard)
+    media = InputMediaPhoto(thumbnail, caption=f"{title}\n{description}\n{link}")
+    bot.edit_message_media(media=media, chat_id=chat_id, message_id=message_id, reply_markup=keyboard)

@@ -239,19 +239,27 @@ def register_handlers(bot):
             elif call.data.startswith("prev_result_"):
                 current_index = int(call.data.split("_")[-1])
                 user_data[call.message.chat.id]['current_index'] = max(0, current_index - 1)
-                utils.show_search_result(call.message.chat.id, user_data[call.message.chat.id]['current_index'])
-
+                utils.show_search_result(call.message.chat.id, user_data[call.message.chat.id]['current_index'], call.message.message_id)
             elif call.data.startswith("next_result_"):
                 current_index = int(call.data.split("_")[-1])
                 user_data[call.message.chat.id]['current_index'] = min(len(user_data[call.message.chat.id]['search_results']) - 1, current_index + 1)
-                utils.show_search_result(call.message.chat.id, user_data[call.message.chat.id]['current_index'])
-
+                utils.show_search_result(call.message.chat.id, user_data[call.message.chat.id]['current_index'], call.message.message_id)
             elif call.data.startswith("select_result_"):
                 index = int(call.data.split("_")[-1])
                 result = user_data[call.message.chat.id]['search_results'][index]
                 link = f"https://www.youtube.com{result['url_suffix']}"
-                bot.send_message(call.message.chat.id, utils.get_string('downloading', user_data[call.message.chat.id]['language']))
-                utils.process_request(call.message.chat.id, link)
+                source = utils.detect_source(link)
+                if source:
+                    chat_id = call.message.chat.id
+                    processing_message = bot.send_message(
+                        chat_id,
+                        utils.get_string('source_detected', user_data[chat_id]['language']).format(source=source),
+                        reply_markup=utils.type_keyboard(user_data[chat_id]['language'])
+                    )
+                    processing_message_id = str(processing_message.message_id)
+                    user_data[chat_id][processing_message_id] = { 'url': link, 'source': source }
+                else:
+                    bot.send_message(call.message.chat.id, utils.get_string('unknown_source', user_data[call.message.chat.id]['language']))
         
         except Exception as e:
             logger.error(f"Error processing callback query: {str(e)}")
