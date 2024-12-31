@@ -1,4 +1,6 @@
 from state import user_data
+from youtube_search import YoutubeSearch
+from config import MAX_SEARCH_RESULTS
 import utils, logging
 
 logger = logging.getLogger(__name__)
@@ -45,11 +47,71 @@ def register_handlers(bot):
         else:
             bot.reply_to(message, utils.get_string("no_key_deletion_access", user_data[message.chat.id]['language']))
     
+    @bot.message_handler(commands=['help'])
+    @utils.authorized_users_only
+    def send_help(message):
+        chat_id = message.chat.id
+        bot.reply_to(message, utils.get_string('help_text', user_data[chat_id]['language']))
+
     @bot.message_handler(commands=['language'])
     @utils.authorized_users_only
     def language_command(message):
         chat_id = message.chat.id
         bot.reply_to(message, utils.get_string('select_language', user_data[chat_id]['language']), reply_markup=utils.language_keyboard())
+
+    @bot.message_handler(commands=['download'])
+    @utils.authorized_users_only
+    def download_video(message):
+        link = message.text[len('/download '):].strip()
+        if not link or not link.startswith(('http://', 'https://')):
+            bot.reply_to(message, utils.get_string('send_video_link', user_data[chat_id]['language']))
+            return
+        
+        source = utils.detect_source(link)
+        if not source:
+            bot.reply_to(message, utils.get_string('unknown_source', user_data[message.chat.id]['language']))
+            return
+        
+        chat_id = message.chat.id
+        processing_message = bot.reply_to(
+            message,
+            utils.get_string('source_detected', user_data[chat_id]['language']).format(source=source),
+            reply_markup=utils.type_keyboard(user_data[chat_id]['language'])
+        )
+        processing_message_id = str(processing_message.message_id)
+        user_data[chat_id][processing_message_id] = {
+            'url': link,
+            'source': source
+        }
+
+    @bot.message_handler(commands=['search'])
+    @utils.authorized_users_only
+    def search_videos(message):
+        query = message.text[len('/search '):].strip()
+        if not query:
+            bot.reply_to(message, utils.get_string('enter_search_query', user_data[message.chat.id]['language']))
+            return
+        searching_message = bot.send_message(message.chat.id, utils.get_string('searching', user_data[message.chat.id]['language']))
+        try:
+            results = YoutubeSearch(query, max_results=MAX_SEARCH_RESULTS).to_dict()
+            if not results:
+                bot.edit_message_text(
+                    utils.get_string('no_results', user_data[message.chat.id]['language']),
+                    chat_id=message.chat.id,
+                    message_id=searching_message.message_id
+                )
+                return
+            user_data[message.chat.id]['search_results'] = results
+            user_data[message.chat.id]['current_index'] = 0
+
+            utils.show_search_result(message.chat.id, user_data[message.chat.id]['language'], 0, searching_message.message_id)
+        except Exception as e:
+            logger.error(f"Error during YouTube search: {e}")
+            bot.edit_message_text(
+                utils.get_string('search_error', user_data[message.chat.id]['language']).format(error=str(e)),
+                chat_id=message.chat.id,
+                message_id=searching_message.message_id
+            )
     
     @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_"))
     @utils.authorized_users_only
@@ -67,7 +129,7 @@ def register_handlers(bot):
         except Exception as e:
             logger.error(f"Error processing request for user {chat_id}: {str(e)}")
             bot.send_message(chat_id, utils.get_string('processing_error', user_data[chat_id]['language']).format(error=str(e)), parse_mode='HTML')
-
+    
     @bot.message_handler(func=lambda message: True)
     @utils.authorized_users_only
     def handle_message(message):
@@ -85,7 +147,27 @@ def register_handlers(bot):
             else:
                 bot.reply_to(message, utils.get_string('unknown_source', user_data[message.chat.id]['language']))
         else:
-            bot.reply_to(message, utils.get_string('send_video_link', user_data[message.chat.id]['language']))
+            searching_message = bot.send_message(message.chat.id, utils.get_string('searching', user_data[message.chat.id]['language']))
+            try:
+                results = YoutubeSearch(message.text, max_results=MAX_SEARCH_RESULTS).to_dict()
+                if not results:
+                    bot.edit_message_text(
+                        utils.get_string('no_results', user_data[message.chat.id]['language']),
+                        chat_id=message.chat.id,
+                        message_id=searching_message.message_id
+                    )
+                    return
+                user_data[message.chat.id]['search_results'] = results
+                user_data[message.chat.id]['current_index'] = 0
+
+                utils.show_search_result(message.chat.id, user_data[message.chat.id]['language'], 0, searching_message.message_id)
+            except Exception as e:
+                logger.error(f"Error during YouTube search: {e}")
+                bot.edit_message_text(
+                    utils.get_string('search_error', user_data[message.chat.id]['language']).format(error=str(e)),
+                    chat_id=message.chat.id,
+                    message_id=searching_message.message_id
+                )
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
     def callback_language(call):
@@ -218,6 +300,30 @@ def register_handlers(bot):
                 user_data[chat_id][processing_message_id]['force_keyframes'] = force_keyframes
                 available_qualities = user_data[chat_id][processing_message_id]['file_info']['qualities']
                 bot.edit_message_text(utils.get_string('select_quality', user_data[chat_id]['language']), chat_id, processing_message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id, processing_message_id, selected_video=user_data[chat_id][processing_message_id]['video_format'], selected_audio=user_data[chat_id][processing_message_id]['audio_format']))
+            elif call.data.startswith("prev_result_"):
+                current_index = int(call.data.split("_")[-1])
+                user_data[call.message.chat.id]['current_index'] = max(0, current_index - 1)
+                utils.show_search_result(call.message.chat.id, user_data[chat_id]['language'], user_data[call.message.chat.id]['current_index'], call.message.message_id)
+            elif call.data.startswith("next_result_"):
+                current_index = int(call.data.split("_")[-1])
+                user_data[call.message.chat.id]['current_index'] = min(len(user_data[call.message.chat.id]['search_results']) - 1, current_index + 1)
+                utils.show_search_result(call.message.chat.id, user_data[chat_id]['language'], user_data[call.message.chat.id]['current_index'], call.message.message_id)
+            elif call.data.startswith("select_result_"):
+                index = int(call.data.split("_")[-1])
+                result = user_data[call.message.chat.id]['search_results'][index]
+                link = f"https://www.youtube.com{result['url_suffix']}"
+                source = utils.detect_source(link)
+                if source:
+                    chat_id = call.message.chat.id
+                    processing_message = bot.send_message(
+                        chat_id,
+                        utils.get_string('source_detected', user_data[chat_id]['language']).format(source=source),
+                        reply_markup=utils.type_keyboard(user_data[chat_id]['language'])
+                    )
+                    processing_message_id = str(processing_message.message_id)
+                    user_data[chat_id][processing_message_id] = { 'url': link, 'source': source }
+                else:
+                    bot.send_message(call.message.chat.id, utils.get_string('unknown_source', user_data[call.message.chat.id]['language']))
         
         except Exception as e:
             logger.error(f"Error processing callback query: {str(e)}")

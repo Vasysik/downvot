@@ -1,7 +1,7 @@
 {
     "lang_name": "Polski",
     "select_language": "Proszę wybrać preferowany język:",
-    "start_message": "Witaj! Jestem botem do pobierania plików multimedialnych.\nProszę wysłać link do filmu na YouTube.",
+    "start_message": "Witaj! Jestem botem do pobierania plików multimedialnych.\nProszę wysłać link lub tytuł filmu na YouTube.",
     "admin_panel": "Panel administratora:",
     "no_admin_access": "Przepraszamy, nie masz dostępu do panelu administratora.",
     "no_access": "Przepraszamy, nie masz dostępu do tego bota.",
@@ -37,6 +37,7 @@
     "second": "sek",
     "download_complete_video": "Twoje wideo z YouTube jest gotowe!\n<a href='{url}'>{title}</a>\nJakość wideo: {video_quality}\nJakość audio: {audio_quality}",
     "download_complete_audio": "Twoje audio z YouTube jest gotowe!\n<a href='{url}'>{title}</a>\nJakość audio: {audio_quality}",
+    "download_fragment": "Fragment: {start_time}-{end_time}",
     "file_link": "Link do pliku",
     "select_range": "Zakres:",
     "enter_start_time": "Wprowadź czas rozpoczęcia w formacie GG:MM:SS lub '-' dla początku",
@@ -46,5 +47,9 @@
     "fast": "Szybka",
     "precise": "Precyzyjna",
     "more_requests": "Jeśli masz więcej próśb, proszę wysłać nowy link.",
-    "language_changed": "Język został pomyślnie zmieniony na polski."
+    "language_changed": "Język został pomyślnie zmieniony na polski.",
+    "help_text": "Dostępne polecenia:\n/language - zmień język bota\n/pomoc - pokaż tę wiadomość\n/szukaj <żądanie> - wyszukaj film na YouTube\n/pobierz <link> - pobierz film z linku\n\nMożesz wysłać link lub tytuł bezpośrednio do przetworzenia przez bota.",
+    "searching": "Wyszukiwanie...",
+    "no_results": "Nie znaleziono żadnych wyników dla Twojego wyszukiwania.",
+    "search_error": "Wystąpił błąd podczas wyszukiwania: {error}"
 }

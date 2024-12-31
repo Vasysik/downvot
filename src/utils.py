@@ -1,6 +1,6 @@
 from functools import wraps
-from config import load_config, AUTO_CREATE_KEY, AUTO_ALLOWED_CHANNEL, DEFAULT_LANGUAGE, LANGUAGES
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
+from config import load_config, AUTO_CREATE_KEY, AUTO_ALLOWED_CHANNEL, DEFAULT_LANGUAGE, LANGUAGES, MAX_GET_RESULT_RETRIES
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery, InputMediaPhoto
 from yt_dlp_host_api.exceptions import APIError
 from state import user_data, bot, admin, api
 import logging, io, re, json
@@ -144,7 +144,7 @@ def process_request(chat_id, processing_message_id):
         bot.edit_message_text(get_string('processing_request', user_data[chat_id]['language']), chat_id, processing_message_id)
         
         logger.info(f"Waiting for task result for user {username}")
-        task_result = task.get_result()
+        task_result = task.get_result(max_retries=MAX_GET_RESULT_RETRIES)
         file_url = task_result.get_file_url()
         
         max_file_size = 50 * 1024 * 1024  # 50 MB
@@ -162,10 +162,12 @@ def process_request(chat_id, processing_message_id):
             if file_type == 'video': 
                 message = get_string('download_complete_video', user_data[chat_id]['language'])
                 caption = message.format(url=url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps")
+                if start_time or end_time: caption += "\n"+get_string('download_fragment', user_data[chat_id]['language']).format(start_time=start_time, end_time=end_time)
                 bot.send_photo(chat_id, info['thumbnail'], caption=caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url))
             else: 
                 message = get_string('download_complete_audio', user_data[chat_id]['language'])
                 caption = message.format(url=url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps")
+                if start_time or end_time: caption += "\n"+get_string('download_fragment', user_data[chat_id]['language']).format(start_time=start_time, end_time=end_time)
                 bot.send_message(chat_id, caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url))
         else:
             logger.info(f"Preparing to send file for user {username}")
@@ -181,10 +183,12 @@ def process_request(chat_id, processing_message_id):
             if file_type == 'video': 
                 message = get_string('download_complete_video', user_data[chat_id]['language'])
                 caption = message.format(url=url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps")
+                if start_time or end_time: caption += "\n"+get_string('download_fragment', user_data[chat_id]['language']).format(start_time=start_time, end_time=end_time)
                 bot.send_video(chat_id, file_obj, caption=caption, supports_streaming=True, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url))
             else: 
                 message = get_string('download_complete_audio', user_data[chat_id]['language'])
                 caption = message.format(url=url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps")
+                if start_time or end_time: caption += "\n"+get_string('download_fragment', user_data[chat_id]['language']).format(start_time=start_time, end_time=end_time)
                 bot.send_audio(chat_id, file_obj, caption=caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url))
         logger.info(f"Request processing completed successfully for user {username}")
     except APIError as e:
@@ -379,3 +383,36 @@ def crop_keyboard(lang_code, processing_message_id):
         InlineKeyboardButton(get_string('fast', lang_code), callback_data=f"crop_mode_{processing_message_id}_fast"),
         InlineKeyboardButton(get_string('precise', lang_code), callback_data=f"crop_mode_{processing_message_id}_precise")
     )
+
+def get_or_create_client(user):
+    try:
+        return api.get_client(admin.get_key(f'{user.username}_downvot'))
+    except APIError:
+        if AUTO_CREATE_KEY:
+            admin.create_key(f'{user.username}_downvot', ["get_video", "get_audio", "get_info"])
+            return api.get_client(admin.get_key(f'{user.username}_downvot'))
+        raise
+
+def show_search_result(chat_id, lang_code, index, message_id):
+    results = user_data[chat_id]['search_results']
+    total_results = len(results)
+    
+    if index < 0:
+        index = 0
+    elif index >= total_results:
+        index = total_results - 1
+
+    result = results[index]
+    title = result['title']
+    link = f"https://www.youtube.com{result['url_suffix']}"
+    thumbnail = result['thumbnails'][0]
+
+    keyboard = InlineKeyboardMarkup()
+    keyboard.row(
+        InlineKeyboardButton("<-" if index > 0 else " ", callback_data=f"prev_result_{index}" if index > 0 else "noop"),
+        InlineKeyboardButton(get_string('download_button', lang_code), callback_data=f"select_result_{index}"),
+        InlineKeyboardButton("->" if index < total_results - 1 else " ", callback_data=f"next_result_{index}" if index < total_results - 1 else "noop")
+    )
+
+    media = InputMediaPhoto(thumbnail, caption=f"<a href='{link}'>{title}</a>", parse_mode='HTML')
+    bot.edit_message_media(media=media, chat_id=chat_id, message_id=message_id, reply_markup=keyboard)
