@@ -410,7 +410,7 @@ def show_search_result(chat_id, lang_code, index, message_id):
     keyboard = InlineKeyboardMarkup()
     keyboard.row(
         InlineKeyboardButton("<-" if index > 0 else " ", callback_data=f"prev_result_{index}" if index > 0 else "noop"),
-        InlineKeyboardButton(get_string('select', lang_code), callback_data=f"select_result_{index}"),
+        InlineKeyboardButton(get_string('download_button', lang_code), callback_data=f"select_result_{index}"),
         InlineKeyboardButton("->" if index < total_results - 1 else " ", callback_data=f"next_result_{index}" if index < total_results - 1 else "noop")
     )
 

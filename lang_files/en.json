@@ -51,6 +51,5 @@
     "help_text": "Available commands:\n/language - change the bot language\n/help - show this message\n/search <query> - search for videos on YouTube\n/download <link> - download video by link\n\nYou can send a link or title directly for the bot to process.",
     "searching": "Searching...",
     "no_results": "Nothing was found for your request.",
-    "search_error": "An error occurred while searching: {error}",
-    "select": "Select"
+    "search_error": "An error occurred while searching: {error}"
 }
