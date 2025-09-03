@@ -1,7 +1,7 @@
 from state import user_data
 from youtube_search import YoutubeSearch
 from config import MAX_SEARCH_RESULTS
-import utils, logging
+import utils, logging, re
 
 logger = logging.getLogger(__name__)
 
@@ -311,8 +311,13 @@ def register_handlers(bot):
             elif call.data.startswith("select_result_"):
                 index = int(call.data.split("_")[-1])
                 result = user_data[call.message.chat.id]['search_results'][index]
-                link = f"https://www.youtube.com{result['url_suffix']}"
+                video_id_match = re.search(r'[?&]v=([^&]+)', result['url_suffix'])
+                if video_id_match:
+                    video_id = video_id_match.group(1)
+                    link = f"https://www.youtube.com/watch?v={video_id}"
+                else: link = f"https://www.youtube.com{result['url_suffix']}"
                 source = utils.detect_source(link)
+
                 if source:
                     chat_id = call.message.chat.id
                     processing_message = bot.send_message(
