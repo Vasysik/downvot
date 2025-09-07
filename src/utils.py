@@ -35,6 +35,12 @@ def parse_timestamp(timestamp):
     except ValueError:
         raise ValueError("Invalid timestamp format. Use HH:MM:SS or '-'")
 
+def get_codec_name(codec_string):
+    if not codec_string:
+        return ""
+    codec_parts = codec_string.split('.')
+    return codec_parts[0]
+
 def authorized_users_only(func):
     @wraps(func)
     def wrapper(message):
@@ -271,7 +277,9 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
     elif qualities["audio"][default_audio].get("filesize_approx", 0): total_size += qualities["audio"][default_audio]["filesize_approx"]
 
     audio_format = qualities["audio"][default_audio]
-    keyboard.row(InlineKeyboardButton(f"{get_string('audio_quality', user_data[chat_id]['language'])} {audio_format['abr']}kbps", callback_data=f"select_audio_quality_{processing_message_id}"))
+    codec = get_codec_name(audio_format.get('acodec', ''))
+    codec_display = f" {codec}" if codec else ""
+    keyboard.row(InlineKeyboardButton(f"{get_string('audio_quality', user_data[chat_id]['language'])} {audio_format['abr']}kbps{codec_display}", callback_data=f"select_audio_quality_{processing_message_id}"))
 
     start_time = user_data[chat_id][processing_message_id].get('start_time')
     end_time = user_data[chat_id][processing_message_id].get('end_time')
@@ -323,8 +331,10 @@ def audio_quality_keyboard(qualities, processing_message_id):
     unique_qualities = {}
     for quality, data in qualities["audio"].items():
         abr = data['abr']
-        key = f'{abr}'
+        codec = get_codec_name(data.get('acodec', ''))
+        key = f'{abr}_{codec}'
         unique_qualities[key] = (quality, data)
+    
     for key, (quality, data) in unique_qualities.items():
         if len(row) == 2:
             keyboard.row(*row)
@@ -333,8 +343,11 @@ def audio_quality_keyboard(qualities, processing_message_id):
         size = "≈?MB"
         if data['filesize']: size = f"≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
         elif data.get('filesize_approx', 0): size = f"≈{round(data.get('filesize_approx', 0) / (1024 * 1024), 1)}MB"
-
-        label = f"{data['abr']}kbps {size}"
+        
+        codec = get_codec_name(data.get('acodec', ''))
+        codec_display = f" {codec}" if codec else ""
+        
+        label = f"{data['abr']}kbps{codec_display} {size}"
         row.append(InlineKeyboardButton(label, callback_data=f"audio_quality_{quality}_{processing_message_id}"))
     if row:
         keyboard.row(*row)
