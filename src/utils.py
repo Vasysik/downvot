@@ -39,6 +39,10 @@ def get_codec_name(codec_string):
     if not codec_string:
         return ""
     codec_parts = codec_string.split('.')
+    if codec_parts[0] == 'opus':
+        return 'webm'
+    if codec_parts[0] == 'mp4a':
+        return 'm4a'
     return codec_parts[0]
 
 def authorized_users_only(func):
