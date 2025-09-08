@@ -7,6 +7,9 @@ import logging, io, re, json
 
 logger = logging.getLogger(__name__)
 
+VIDEO_FORMATS = ['mp4', 'mkv', 'webm', 'avi', 'mov', 'flv', '3gp']
+AUDIO_FORMATS = ['mp3', 'm4a', 'opus', 'flac', 'wav', 'aac', 'ogg']
+
 def get_string(key, lang_code=DEFAULT_LANGUAGE):
     if not lang_code in LANGUAGES: lang_code = DEFAULT_LANGUAGE
     if not key in LANGUAGES[lang_code]: lang_code = DEFAULT_LANGUAGE
@@ -34,16 +37,6 @@ def parse_timestamp(timestamp):
         return hours * 3600 + minutes * 60 + seconds
     except ValueError:
         raise ValueError("Invalid timestamp format. Use HH:MM:SS or '-'")
-
-def get_codec_name(codec_string):
-    if not codec_string:
-        return ""
-    codec_parts = codec_string.split('.')
-    if codec_parts[0] == 'opus':
-        return 'webm'
-    if codec_parts[0] == 'mp4a':
-        return 'm4a'
-    return codec_parts[0]
 
 def authorized_users_only(func):
     @wraps(func)
@@ -124,6 +117,7 @@ def process_request(chat_id, processing_message_id):
         duration = processing_data.get('duration', 30)
         video_format = processing_data['video_format']
         audio_format = processing_data['audio_format']
+        output_format = processing_data.get('output_format', 'mp4' if file_type == 'video' else 'mp3')
         total_size = processing_data['total_size']
         username = user_data[chat_id]['username']
         info = processing_data['file_info']
@@ -135,21 +129,20 @@ def process_request(chat_id, processing_message_id):
         if start_time: start_time = format_duration(start_time)
         if end_time: end_time = format_duration(end_time)
 
-        logger.info(f"Request details for user {username}: file_type={file_type}, video_format={video_format}, audio_format={audio_format}, duration={duration}")
+        logger.info(f"Request details for user {username}: file_type={file_type}, video_format={video_format}, audio_format={audio_format}, output_format={output_format}, duration={duration}")
 
-        video_format_info = info['qualities']["video"][video_format]
+        video_format_info = info['qualities']["video"][video_format] if file_type == 'video' else None
         audio_format_info = info['qualities']["audio"][audio_format]
         
         if info['is_live']:
             if file_type == 'video':
-                task = client.send_task.get_live_video(url=url, duration=duration, video_format=video_format, audio_format=audio_format)
+                task = client.send_task.get_live_video(url=url, duration=duration, video_format=video_format, audio_format=audio_format, output_format=output_format)
             else:
-                task = client.send_task.get_live_audio(url=url, duration=duration, audio_format=audio_format)
+                task = client.send_task.get_live_audio(url=url, duration=duration, audio_format=audio_format, output_format=output_format)
         elif file_type == 'video':
-            task = client.send_task.get_video(url=url, video_format=video_format, audio_format=audio_format, start_time=start_time, end_time=end_time, force_keyframes=force_keyframes)
-
+            task = client.send_task.get_video(url=url, video_format=video_format, audio_format=audio_format, output_format=output_format, start_time=start_time, end_time=end_time, force_keyframes=force_keyframes)
         else:
-            task = client.send_task.get_audio(url=url, audio_format=audio_format, start_time=start_time, end_time=end_time, force_keyframes=force_keyframes)
+            task = client.send_task.get_audio(url=url, audio_format=audio_format, output_format=output_format, start_time=start_time, end_time=end_time, force_keyframes=force_keyframes)
 
         bot.edit_message_text(get_string('processing_request', user_data[chat_id]['language']), chat_id, processing_message_id)
         
@@ -184,9 +177,9 @@ def process_request(chat_id, processing_message_id):
             filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'][:48])
             filename = re.sub(r'\s+', '_', filename) + f'_DownVot'
             if file_type == 'video': 
-                filename += f"_{video_format_info['height']}p{video_format_info['fps']}.{file_url.split('.')[-1]}"
+                filename += f"_{video_format_info['height']}p{video_format_info['fps']}.{output_format}"
             else: 
-                filename += f"_{audio_format_info['abr']}kbps.{file_url.split('.')[-1]}"
+                filename += f"_{audio_format_info['abr']}kbps.{output_format}"
             file_obj.name = filename
 
             logger.info(f"Sending file '{filename}' to user {username}")
@@ -254,6 +247,24 @@ def type_keyboard(lang_code):
                  InlineKeyboardButton(get_string('audio_button', lang_code), callback_data="type_audio"))
     return keyboard
 
+def output_format_keyboard(file_type, lang_code, processing_message_id):
+    keyboard = InlineKeyboardMarkup()
+    formats = VIDEO_FORMATS if file_type == 'video' else AUDIO_FORMATS
+    format_strings = get_string('video_formats' if file_type == 'video' else 'audio_formats', lang_code)
+    
+    row = []
+    for fmt in formats:
+        if len(row) == 2:
+            keyboard.row(*row)
+            row = []
+        label = format_strings.get(fmt, fmt.upper())
+        row.append(InlineKeyboardButton(label, callback_data=f"format_{fmt}_{processing_message_id}"))
+    
+    if row:
+        keyboard.row(*row)
+    
+    return keyboard
+
 def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=None, selected_audio=None):
     keyboard = InlineKeyboardMarkup()
     total_size = 0
@@ -264,6 +275,7 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
         user_data[chat_id][processing_message_id]['video_format'] = default_video
     else: 
         default_video = selected_video
+    
     if user_data[chat_id][processing_message_id]['file_type'] == 'video':
         if qualities["video"][default_video]["filesize"]: total_size += qualities["video"][default_video]["filesize"]
         elif qualities["video"][default_video].get("filesize_approx", 0): total_size += qualities["video"][default_video]["filesize_approx"]
@@ -281,17 +293,18 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
     elif qualities["audio"][default_audio].get("filesize_approx", 0): total_size += qualities["audio"][default_audio]["filesize_approx"]
 
     audio_format = qualities["audio"][default_audio]
-    codec = get_codec_name(audio_format.get('acodec', ''))
-    codec_display = f" {codec}" if codec else ""
-    keyboard.row(InlineKeyboardButton(f"{get_string('audio_quality', user_data[chat_id]['language'])} {audio_format['abr']}kbps{codec_display}", callback_data=f"select_audio_quality_{processing_message_id}"))
+    keyboard.row(InlineKeyboardButton(f"{get_string('audio_quality', user_data[chat_id]['language'])} {audio_format['abr']}kbps", callback_data=f"select_audio_quality_{processing_message_id}"))
+
+    output_format = user_data[chat_id][processing_message_id].get('output_format', 'mp4' if user_data[chat_id][processing_message_id]['file_type'] == 'video' else 'mp3')
+    format_strings = get_string('video_formats' if user_data[chat_id][processing_message_id]['file_type'] == 'video' else 'audio_formats', user_data[chat_id]['language'])
+    format_label = format_strings.get(output_format, output_format.upper())
+    keyboard.row(InlineKeyboardButton(f"{get_string('output_format', user_data[chat_id]['language'])} {format_label}", callback_data=f"select_output_format_{processing_message_id}"))
 
     start_time = user_data[chat_id][processing_message_id].get('start_time')
     end_time = user_data[chat_id][processing_message_id].get('end_time')
     duration = user_data[chat_id][processing_message_id]['file_info']['duration']
     start_str = format_duration(start_time) if start_time is not None else "00:00:00"
     end_str = format_duration(end_time) if end_time is not None else format_duration(duration)
-    crop_mode_str = get_string('fast', user_data[chat_id]['language'])
-    if user_data[chat_id][processing_message_id].get('force_keyframes', False): crop_mode_str = get_string('precise', user_data[chat_id]['language'])
     keyboard.row(InlineKeyboardButton(f"{get_string('select_range', user_data[chat_id]['language'])} {start_str}-{end_str}", callback_data=f"crop_time_{processing_message_id}"))
 
     if start_time is not None or end_time is not None:
@@ -335,8 +348,7 @@ def audio_quality_keyboard(qualities, processing_message_id):
     unique_qualities = {}
     for quality, data in qualities["audio"].items():
         abr = data['abr']
-        codec = get_codec_name(data.get('acodec', ''))
-        key = f'{abr}_{codec}'
+        key = f'{abr}'
         unique_qualities[key] = (quality, data)
     
     for key, (quality, data) in unique_qualities.items():
@@ -348,10 +360,7 @@ def audio_quality_keyboard(qualities, processing_message_id):
         if data['filesize']: size = f"≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
         elif data.get('filesize_approx', 0): size = f"≈{round(data.get('filesize_approx', 0) / (1024 * 1024), 1)}MB"
         
-        codec = get_codec_name(data.get('acodec', ''))
-        codec_display = f" {codec}" if codec else ""
-        
-        label = f"{data['abr']}kbps{codec_display} {size}"
+        label = f"{data['abr']}kbps {size}"
         row.append(InlineKeyboardButton(label, callback_data=f"audio_quality_{quality}_{processing_message_id}"))
     if row:
         keyboard.row(*row)
@@ -364,7 +373,7 @@ def admin_keyboard(lang_code):
     keyboard.row(InlineKeyboardButton(get_string('delete_key_button', lang_code), callback_data="admin_delete_key"))
     return keyboard
 
-def duration_keyboard(lang_code):
+def duration_keyboard(lang_code, processing_message_id):
     keyboard = InlineKeyboardMarkup()
     row = []
     durations = [30, 60, 120, 180, 240, 300]
@@ -372,7 +381,7 @@ def duration_keyboard(lang_code):
         if len(row) == 3:
             keyboard.row(*row)
             row = []
-        row.append(InlineKeyboardButton(text=f"{duration} {get_string('second', lang_code)}", callback_data=f"duration_{duration}"))
+        row.append(InlineKeyboardButton(text=f"{duration} {get_string('second', lang_code)}", callback_data=f"duration_{duration}_{processing_message_id}"))
     if row:
         keyboard.row(*row)
     return keyboard

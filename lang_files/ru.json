@@ -51,5 +51,25 @@
         "help_text": "Доступные команды:\n/language - изменить язык бота\n/help - показать это сообщение\n/search <запрос> - поиск видео на YouTube\n/download <ссылка> - скачать видео по ссылке\n\nВы можете отправить ссылку или название напрямую, для обработки ботом.",
         "searching": "Поиск...",
     "no_results": "По вашему запросу ничего не нашлось.",
-    "search_error": "Произошла ошибка при поиске: {error}"
+    "search_error": "Произошла ошибка при поиске: {error}",
+    "select_output_format": "Выберите формат файла:",
+    "output_format": "Формат:",
+    "video_formats": {
+        "mp4": "MP4",
+        "mkv": "MKV",
+        "webm": "WebM",
+        "avi": "AVI",
+        "mov": "MOV",
+        "flv": "FLV",
+        "3gp": "3GP"
+    },
+    "audio_formats": {
+        "mp3": "MP3",
+        "m4a": "M4A",
+        "opus": "Opus",
+        "flac": "FLAC",
+        "wav": "WAV",
+        "aac": "AAC",
+        "ogg": "OGG"
+    }
 }

@@ -289,6 +289,17 @@ def register_handlers(bot):
                 user_data[chat_id][processing_message_id]['audio_format'] = audio_quality
                 utils.process_request(chat_id, processing_message_id)
                 logger.info(f"Link from user {call.message.from_user.username} successfully processed!")
+            elif call.data.startswith("select_output_format_"):
+                processing_message_id = call.data.split("_")[-1]
+                file_type = user_data[chat_id][processing_message_id]['file_type']
+                bot.edit_message_text(utils.get_string('select_output_format', user_data[chat_id]['language']), chat_id, processing_message_id, reply_markup=utils.output_format_keyboard(file_type, user_data[chat_id]['language'], processing_message_id))
+            elif call.data.startswith("format_"):
+                parts = call.data.split("_")
+                output_format = parts[1]
+                processing_message_id = parts[2]
+                user_data[chat_id][processing_message_id]['output_format'] = output_format
+                available_qualities = user_data[chat_id][processing_message_id]['file_info']['qualities']
+                bot.edit_message_text(utils.get_string('select_quality', user_data[chat_id]['language']), chat_id, processing_message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id, processing_message_id, selected_video=user_data[chat_id][processing_message_id].get('video_format'), selected_audio=user_data[chat_id][processing_message_id].get('audio_format')))
             elif call.data.startswith("crop_time_"):
                 processing_message_id = call.data.split("_")[2]
                 bot.edit_message_text(utils.get_string('enter_start_time', user_data[chat_id]['language']), chat_id, processing_message_id )
@@ -329,7 +340,7 @@ def register_handlers(bot):
                     user_data[chat_id][processing_message_id] = { 'url': link, 'source': source }
                 else:
                     bot.send_message(call.message.chat.id, utils.get_string('unknown_source', user_data[call.message.chat.id]['language']))
-        
+
         except Exception as e:
             logger.error(f"Error processing callback query: {str(e)}")
             bot.send_message(chat_id, utils.get_string('processing_error', user_data[chat_id]['language']).format(error=str(e)), parse_mode='HTML')
