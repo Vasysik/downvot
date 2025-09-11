@@ -328,10 +328,6 @@ def register_handlers(bot):
                 processing_message_id = call.data.split("_")[-1]
                 available_qualities = user_data[chat_id][processing_message_id]['file_info']['qualities']
                 bot.edit_message_text(utils.get_string('select_video_quality', user_data[chat_id]['language']), chat_id, processing_message_id, reply_markup=utils.video_quality_keyboard(available_qualities, processing_message_id))
-            elif call.data.startswith("select_audio_quality_"):
-                processing_message_id = call.data.split("_")[-1]
-                available_qualities = user_data[chat_id][processing_message_id]['file_info']['qualities']
-                bot.edit_message_text(utils.get_string('select_audio_quality', user_data[chat_id]['language']), chat_id, processing_message_id, reply_markup=utils.audio_quality_keyboard(available_qualities, processing_message_id))
             elif call.data.startswith("video_quality_"):
                 quality, processing_message_id = call.data.split("_")[2:]
                 user_data[chat_id][processing_message_id]['video_format'] = quality
@@ -345,6 +341,22 @@ def register_handlers(bot):
                     chat_id,
                     processing_message_id,
                     reply_markup=utils.audio_quality_keyboard(available_qualities, processing_message_id, chat_id)
+                )
+            elif call.data.startswith("audio_quality_"):
+                quality, processing_message_id = call.data.split("_")[2:]
+                user_data[chat_id][processing_message_id]['audio_format'] = quality
+                available_qualities = user_data[chat_id][processing_message_id]['file_info']['qualities']
+                bot.edit_message_text(
+                    utils.get_string('select_quality', user_data[chat_id]['language']), 
+                    chat_id, 
+                    processing_message_id, 
+                    reply_markup=utils.quality_keyboard(
+                        available_qualities, 
+                        chat_id, 
+                        processing_message_id, 
+                        selected_video=user_data[chat_id][processing_message_id].get('video_format'), 
+                        selected_audio=quality
+                    )
                 )
             elif call.data.startswith("back_to_main_"):
                 processing_message_id = call.data.split("_")[-1]
