@@ -137,13 +137,48 @@ def register_handlers(bot):
             source = utils.detect_source(message.text)
             if source:
                 logger.info(f"Received link from user {message.from_user.username}: {message.text}")
-                processing_message = bot.reply_to(message, utils.get_string('source_detected', user_data[message.chat.id]['language']).format(source=source), reply_markup=utils.type_keyboard(user_data[message.chat.id]['language']))
                 
+                processing_message = bot.reply_to(message, utils.get_string('getting_video_info', user_data[message.chat.id]['language']))
                 processing_message_id = str(processing_message.message_id)
-                user_data[message.chat.id][processing_message_id] = {
-                    'url': message.text,
-                    'source': source
-                }
+                
+                try:
+                    client = user_data[message.chat.id]['client']
+                    info = client.get_info(url=message.text).get_json(['qualities', 'title', 'thumbnail', 'is_live', 'duration', 'language'])
+                    
+                    audio_langs = {}
+                    for fmt_id, data in info['qualities']['audio'].items():
+                        lang = data.get('language', 'orig')
+                        if lang not in audio_langs:
+                            audio_langs[lang] = []
+                        audio_langs[lang].append(fmt_id)
+                    
+                    default_lang = info.get('language', 'orig')
+                    if default_lang not in audio_langs and 'orig' in audio_langs:
+                        default_lang = 'orig'
+                    elif default_lang not in audio_langs:
+                        default_lang = next(iter(audio_langs))
+                    
+                    user_data[message.chat.id][processing_message_id] = {
+                        'url': message.text,
+                        'source': source,
+                        'file_info': info,
+                        'audio_langs': audio_langs,
+                        'selected_audio_lang': default_lang
+                    }
+                    
+                    bot.edit_message_text(
+                        utils.get_string('source_detected', user_data[message.chat.id]['language']).format(source=source), 
+                        message.chat.id,
+                        processing_message_id,
+                        reply_markup=utils.type_keyboard(user_data[message.chat.id]['language'])
+                    )
+                except Exception as e:
+                    logger.error(f"Error getting video information: {str(e)}")
+                    bot.edit_message_text(
+                        utils.get_string('video_info_error', user_data[message.chat.id]['language']), 
+                        message.chat.id,
+                        processing_message_id
+                    )
             else:
                 bot.reply_to(message, utils.get_string('unknown_source', user_data[message.chat.id]['language']))
         else:
@@ -237,45 +272,54 @@ def register_handlers(bot):
         chat_id = call.message.chat.id
         processing_message_id = str(call.message.message_id)
         if not user_data[chat_id].get(processing_message_id): user_data[chat_id][processing_message_id] = {}
-
         try:
             if call.data.startswith("admin_"):
                 admin_callback_query(call)
             elif call.data.startswith("type_"):
                 user_data[chat_id][processing_message_id]['file_type'] = 'video' if call.data.split("_")[1] == 'video' else 'audio'
-                bot.edit_message_text(utils.get_string('getting_video_info', user_data[chat_id]['language']), chat_id, processing_message_id)
-                try:
-                    client = user_data[chat_id]['client']
-                    info = client.get_info(url=user_data[chat_id][processing_message_id]['url']).get_json(['qualities', 'title', 'thumbnail', 'is_live', 'duration', 'language'])
-                    user_data[chat_id][processing_message_id]['file_info'] = info
-                    
-                    audio_langs = {}
-                    for fmt_id, data in info['qualities']['audio'].items():
-                        lang = data.get('language')
-                        if not lang:
-                            lang = 'orig'
-                        if lang not in audio_langs:
-                            audio_langs[lang] = []
-                        audio_langs[lang].append(fmt_id)
-                    
-                    user_data[chat_id][processing_message_id]['audio_langs'] = audio_langs
-                    
-                    default_lang = info.get('language', 'orig')
-                    if default_lang not in audio_langs and 'orig' in audio_langs:
-                        default_lang = 'orig'
-                    elif default_lang not in audio_langs:
-                        default_lang = next(iter(audio_langs))
-                    
-                    user_data[chat_id][processing_message_id]['selected_audio_lang'] = default_lang
-                    
-                    if info['is_live'] == True:
-                        bot.edit_message_text(utils.get_string('specify_recording_duration', user_data[chat_id]['language']), chat_id, processing_message_id, reply_markup=utils.duration_keyboard(user_data[chat_id]['language'], processing_message_id))
-                    else:
-                        available_qualities = info['qualities']
-                        bot.edit_message_text(utils.get_string('select_quality', user_data[chat_id]['language']), chat_id, processing_message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id, processing_message_id))  
-                except Exception as e:
-                    logger.error(f"Error getting video information: {str(e)}")
-                    bot.edit_message_text(utils.get_string('video_info_error', user_data[chat_id]['language']), chat_id, processing_message_id)
+                
+                info = user_data[chat_id][processing_message_id].get('file_info')
+                if not info:
+                    bot.edit_message_text(utils.get_string('getting_video_info', user_data[chat_id]['language']), chat_id, processing_message_id)
+                    try:
+                        client = user_data[chat_id]['client']
+                        info = client.get_info(url=user_data[chat_id][processing_message_id]['url']).get_json(['qualities', 'title', 'thumbnail', 'is_live', 'duration', 'language'])
+                        user_data[chat_id][processing_message_id]['file_info'] = info
+                        
+                        audio_langs = {}
+                        for fmt_id, data in info['qualities']['audio'].items():
+                            lang = data.get('language', 'orig')
+                            if lang not in audio_langs:
+                                audio_langs[lang] = []
+                            audio_langs[lang].append(fmt_id)
+                        
+                        user_data[chat_id][processing_message_id]['audio_langs'] = audio_langs
+                        default_lang = info.get('language', 'orig')
+                        if default_lang not in audio_langs and 'orig' in audio_langs:
+                            default_lang = 'orig'
+                        elif default_lang not in audio_langs:
+                            default_lang = next(iter(audio_langs))
+                        user_data[chat_id][processing_message_id]['selected_audio_lang'] = default_lang
+                    except Exception as e:
+                        logger.error(f"Error getting video information: {str(e)}")
+                        bot.edit_message_text(utils.get_string('video_info_error', user_data[chat_id]['language']), chat_id, processing_message_id)
+                        return
+                
+                if info['is_live'] == True:
+                    bot.edit_message_text(
+                        utils.get_string('specify_recording_duration', user_data[chat_id]['language']), 
+                        chat_id, 
+                        processing_message_id, 
+                        reply_markup=utils.duration_keyboard(user_data[chat_id]['language'], processing_message_id)
+                    )
+                else:
+                    available_qualities = info['qualities']
+                    bot.edit_message_text(
+                        utils.get_string('select_quality', user_data[chat_id]['language']), 
+                        chat_id, 
+                        processing_message_id, 
+                        reply_markup=utils.quality_keyboard(available_qualities, chat_id, processing_message_id)
+                    )
             elif call.data.startswith('duration_'):
                 duration, processing_message_id = call.data.split('_')[1:]
                 user_data[chat_id][processing_message_id]['duration'] = int(duration)
@@ -328,15 +372,21 @@ def register_handlers(bot):
                 processing_message_id = call.data.split("_")[-1]
                 audio_langs = user_data[chat_id][processing_message_id].get('audio_langs', {})
                 selected_lang = user_data[chat_id][processing_message_id].get('selected_audio_lang', 'orig')
+                original_lang = user_data[chat_id][processing_message_id]['file_info'].get('language')
                 
-                keyboard = utils.audio_language_keyboard(audio_langs, selected_lang, processing_message_id, user_data[chat_id]['language'])
+                keyboard = utils.audio_language_keyboard(
+                    audio_langs, 
+                    selected_lang, 
+                    processing_message_id, 
+                    user_data[chat_id]['language'],
+                    original_lang
+                )
                 bot.edit_message_text(
                     utils.get_string('select_audio_language', user_data[chat_id]['language']),
                     chat_id,
                     processing_message_id,
                     reply_markup=keyboard
                 )
-
             elif call.data.startswith("audio_lang_"):
                 parts = call.data.split("_")
                 selected_lang = parts[2]

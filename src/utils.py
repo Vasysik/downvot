@@ -27,8 +27,7 @@ LANGUAGE_NAMES = {
     'id': 'Bahasa Indonesia',
     'vi': 'Tiếng Việt',
     'th': 'ไทย',
-    'bn': 'বাংলা',
-    'orig': '🎬 Original'
+    'bn': 'বাংলা'
 }
 
 def get_string(key, lang_code=DEFAULT_LANGUAGE):
@@ -290,6 +289,7 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
     keyboard = InlineKeyboardMarkup()
     total_size = 0
     
+    # Video quality button
     video_qualities = list(qualities["video"].items())
     if not selected_video:
         default_video = video_qualities[-1][0]
@@ -308,16 +308,10 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
             f"{get_string('video_quality', user_data[chat_id]['language'])} {video_format['height']}p{video_format['fps']} {dynamic_range}", 
             callback_data=f"select_video_quality_{processing_message_id}"
         ))
-    
+
+    # Audio quality button
     selected_lang = user_data[chat_id][processing_message_id].get('selected_audio_lang')
     audio_langs = user_data[chat_id][processing_message_id].get('audio_langs', {})
-    
-    if audio_langs and len(audio_langs) > 1:
-        lang_name = LANGUAGE_NAMES.get(selected_lang, selected_lang.upper() if selected_lang else 'Auto')
-        keyboard.row(InlineKeyboardButton(
-            f"{get_string('audio_language', user_data[chat_id]['language'])}: {lang_name}",
-            callback_data=f"select_audio_language_{processing_message_id}"
-        ))
     
     filtered_audio = {}
     if selected_lang and audio_langs:
@@ -339,31 +333,53 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
             total_size += qualities["audio"][default_audio]["filesize"]
         elif qualities["audio"][default_audio].get("filesize_approx", 0): 
             total_size += qualities["audio"][default_audio]["filesize_approx"]
-
         audio_format = qualities["audio"][default_audio]
         keyboard.row(InlineKeyboardButton(
             f"{get_string('audio_quality', user_data[chat_id]['language'])} {audio_format['abr']}kbps",
             callback_data=f"select_audio_quality_{processing_message_id}"
         ))
     
-    output_format = user_data[chat_id][processing_message_id].get('output_format', 'mp4' if user_data[chat_id][processing_message_id]['file_type'] == 'video' else 'mp3')
-    format_strings = get_string('video_formats' if user_data[chat_id][processing_message_id]['file_type'] == 'video' else 'audio_formats', user_data[chat_id]['language'])
-    format_label = format_strings.get(output_format, output_format.upper())
-    keyboard.row(InlineKeyboardButton(f"{get_string('output_format', user_data[chat_id]['language'])} {format_label}", callback_data=f"select_output_format_{processing_message_id}"))
-
+    # Audio language button (под audio quality)
+    if audio_langs and len(audio_langs) > 1:
+        original_lang = user_data[chat_id][processing_message_id]['file_info'].get('language')
+        if selected_lang == 'orig' and original_lang:
+            lang_name = f"{LANGUAGE_NAMES.get(original_lang, original_lang.upper())} ({get_string('original_language', user_data[chat_id]['language'])})"
+        else:
+            lang_name = LANGUAGE_NAMES.get(selected_lang, selected_lang.upper() if selected_lang else 'Auto')
+        keyboard.row(InlineKeyboardButton(
+            f"{get_string('audio_language', user_data[chat_id]['language'])}: {lang_name}",
+            callback_data=f"select_audio_language_{processing_message_id}"
+        ))
+    
+    # Time range button
     start_time = user_data[chat_id][processing_message_id].get('start_time')
     end_time = user_data[chat_id][processing_message_id].get('end_time')
     duration = user_data[chat_id][processing_message_id]['file_info']['duration']
     start_str = format_duration(start_time) if start_time is not None else "00:00:00"
     end_str = format_duration(end_time) if end_time is not None else format_duration(duration)
-    keyboard.row(InlineKeyboardButton(f"{get_string('select_range', user_data[chat_id]['language'])} {start_str}-{end_str}", callback_data=f"crop_time_{processing_message_id}"))
+    keyboard.row(InlineKeyboardButton(
+        f"{get_string('select_range', user_data[chat_id]['language'])} {start_str}-{end_str}", 
+        callback_data=f"crop_time_{processing_message_id}"
+    ))
+    
+    # Output format button
+    output_format = user_data[chat_id][processing_message_id].get('output_format', 'mp4' if user_data[chat_id][processing_message_id]['file_type'] == 'video' else 'mp3')
+    format_strings = get_string('video_formats' if user_data[chat_id][processing_message_id]['file_type'] == 'video' else 'audio_formats', user_data[chat_id]['language'])
+    format_label = format_strings.get(output_format, output_format.upper())
+    keyboard.row(InlineKeyboardButton(
+        f"{get_string('output_format', user_data[chat_id]['language'])} {format_label}", 
+        callback_data=f"select_output_format_{processing_message_id}"
+    ))
 
     if start_time is not None or end_time is not None:
         actual_duration = (end_time or duration) - (start_time or 0)
         total_size = total_size * (actual_duration / duration)
     user_data[chat_id][processing_message_id]['total_size'] = total_size
-
-    keyboard.row(InlineKeyboardButton(f"{get_string('download_button', user_data[chat_id]['language'])} ≈{round(total_size / (1024 * 1024), 1)}MB", callback_data=f"quality_{processing_message_id}_{default_video}_{default_audio}"))
+    keyboard.row(InlineKeyboardButton(
+        f"{get_string('download_button', user_data[chat_id]['language'])} ≈{round(total_size / (1024 * 1024), 1)}MB", 
+        callback_data=f"quality_{processing_message_id}_{default_video}_{default_audio}"
+    ))
+    
     return keyboard
 
 def video_quality_keyboard(qualities, processing_message_id):
@@ -434,7 +450,7 @@ def audio_quality_keyboard(qualities, processing_message_id, chat_id=None):
     keyboard.row(InlineKeyboardButton("←", callback_data=f"back_to_main_{processing_message_id}"))
     return keyboard
 
-def audio_language_keyboard(audio_langs, selected_lang, processing_message_id, lang_code):
+def audio_language_keyboard(audio_langs, selected_lang, processing_message_id, lang_code, original_lang=None):
     keyboard = InlineKeyboardMarkup()
     row = []
     
@@ -446,7 +462,12 @@ def audio_language_keyboard(audio_langs, selected_lang, processing_message_id, l
             sorted_langs.append(lang)
     
     for lang in sorted_langs:
-        lang_name = LANGUAGE_NAMES.get(lang, lang.upper())
+        if lang == 'orig' and original_lang:
+            orig_name = LANGUAGE_NAMES.get(original_lang, original_lang.upper())
+            lang_name = f"{orig_name} ({get_string('original_language', lang_code)})"
+        else:
+            lang_name = LANGUAGE_NAMES.get(lang, lang.upper())
+        
         if lang == selected_lang:
             lang_name = "✅ " + lang_name
         
