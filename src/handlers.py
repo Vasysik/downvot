@@ -147,16 +147,15 @@ def register_handlers(bot):
                     
                     audio_langs = {}
                     for fmt_id, data in info['qualities']['audio'].items():
-                        lang = data.get('language', 'orig')
-                        if lang not in audio_langs:
-                            audio_langs[lang] = []
-                        audio_langs[lang].append(fmt_id)
+                        lang = data.get('language')
+                        if lang:
+                            if lang not in audio_langs:
+                                audio_langs[lang] = []
+                            audio_langs[lang].append(fmt_id)
                     
-                    default_lang = info.get('language', 'orig')
-                    if default_lang not in audio_langs and 'orig' in audio_langs:
-                        default_lang = 'orig'
-                    elif default_lang not in audio_langs:
-                        default_lang = next(iter(audio_langs))
+                    default_lang = info.get('language')
+                    if not default_lang or default_lang not in audio_langs:
+                        default_lang = next(iter(audio_langs)) if audio_langs else None
                     
                     user_data[message.chat.id][processing_message_id] = {
                         'url': message.text,

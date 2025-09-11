@@ -351,6 +351,15 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
             callback_data=f"select_audio_language_{processing_message_id}"
         ))
     
+    # Output format button
+    output_format = user_data[chat_id][processing_message_id].get('output_format', 'mp4' if user_data[chat_id][processing_message_id]['file_type'] == 'video' else 'mp3')
+    format_strings = get_string('video_formats' if user_data[chat_id][processing_message_id]['file_type'] == 'video' else 'audio_formats', user_data[chat_id]['language'])
+    format_label = format_strings.get(output_format, output_format.upper())
+    keyboard.row(InlineKeyboardButton(
+        f"{get_string('output_format', user_data[chat_id]['language'])} {format_label}", 
+        callback_data=f"select_output_format_{processing_message_id}"
+    ))
+
     # Time range button
     start_time = user_data[chat_id][processing_message_id].get('start_time')
     end_time = user_data[chat_id][processing_message_id].get('end_time')
@@ -360,15 +369,6 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
     keyboard.row(InlineKeyboardButton(
         f"{get_string('select_range', user_data[chat_id]['language'])} {start_str}-{end_str}", 
         callback_data=f"crop_time_{processing_message_id}"
-    ))
-    
-    # Output format button
-    output_format = user_data[chat_id][processing_message_id].get('output_format', 'mp4' if user_data[chat_id][processing_message_id]['file_type'] == 'video' else 'mp3')
-    format_strings = get_string('video_formats' if user_data[chat_id][processing_message_id]['file_type'] == 'video' else 'audio_formats', user_data[chat_id]['language'])
-    format_label = format_strings.get(output_format, output_format.upper())
-    keyboard.row(InlineKeyboardButton(
-        f"{get_string('output_format', user_data[chat_id]['language'])} {format_label}", 
-        callback_data=f"select_output_format_{processing_message_id}"
     ))
 
     if start_time is not None or end_time is not None:
@@ -455,18 +455,17 @@ def audio_language_keyboard(audio_langs, selected_lang, processing_message_id, l
     row = []
     
     sorted_langs = []
-    if 'orig' in audio_langs:
-        sorted_langs.append('orig')
+    if original_lang and original_lang in audio_langs:
+        sorted_langs.append(original_lang)
     for lang in sorted(audio_langs.keys()):
-        if lang != 'orig':
+        if lang != original_lang:
             sorted_langs.append(lang)
     
     for lang in sorted_langs:
-        if lang == 'orig' and original_lang:
-            orig_name = LANGUAGE_NAMES.get(original_lang, original_lang.upper())
-            lang_name = f"{orig_name} ({get_string('original_language', lang_code)})"
-        else:
-            lang_name = LANGUAGE_NAMES.get(lang, lang.upper())
+        lang_name = LANGUAGE_NAMES.get(lang, lang.upper())
+        
+        if lang == original_lang:
+            lang_name = f"{lang_name} ({get_string('original_language', lang_code)})"
         
         if lang == selected_lang:
             lang_name = "✅ " + lang_name
