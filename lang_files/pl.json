@@ -71,5 +71,8 @@
         "wav": "WAV",
         "aac": "AAC",
         "ogg": "OGG"
-    }
+    },
+    "audio_language": "Język audio",
+    "select_audio_language": "Wybierz język audio:",
+    "original_language": "Oryginalny"
 }

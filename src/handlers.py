@@ -246,8 +246,28 @@ def register_handlers(bot):
                 bot.edit_message_text(utils.get_string('getting_video_info', user_data[chat_id]['language']), chat_id, processing_message_id)
                 try:
                     client = user_data[chat_id]['client']
-                    info = client.get_info(url=user_data[chat_id][processing_message_id]['url']).get_json(['qualities', 'title', 'thumbnail', 'is_live', 'duration'])
+                    info = client.get_info(url=user_data[chat_id][processing_message_id]['url']).get_json(['qualities', 'title', 'thumbnail', 'is_live', 'duration', 'language'])
                     user_data[chat_id][processing_message_id]['file_info'] = info
+                    
+                    audio_langs = {}
+                    for fmt_id, data in info['qualities']['audio'].items():
+                        lang = data.get('language')
+                        if not lang:
+                            lang = 'orig'
+                        if lang not in audio_langs:
+                            audio_langs[lang] = []
+                        audio_langs[lang].append(fmt_id)
+                    
+                    user_data[chat_id][processing_message_id]['audio_langs'] = audio_langs
+                    
+                    default_lang = info.get('language', 'orig')
+                    if default_lang not in audio_langs and 'orig' in audio_langs:
+                        default_lang = 'orig'
+                    elif default_lang not in audio_langs:
+                        default_lang = next(iter(audio_langs))
+                    
+                    user_data[chat_id][processing_message_id]['selected_audio_lang'] = default_lang
+                    
                     if info['is_live'] == True:
                         bot.edit_message_text(utils.get_string('specify_recording_duration', user_data[chat_id]['language']), chat_id, processing_message_id, reply_markup=utils.duration_keyboard(user_data[chat_id]['language'], processing_message_id))
                     else:
@@ -274,11 +294,15 @@ def register_handlers(bot):
                 user_data[chat_id][processing_message_id]['video_format'] = quality
                 available_qualities = user_data[chat_id][processing_message_id]['file_info']['qualities']
                 bot.edit_message_text(utils.get_string('select_quality', user_data[chat_id]['language']), chat_id, processing_message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id, processing_message_id, selected_video=quality, selected_audio=user_data[chat_id][processing_message_id].get('audio_format')))
-            elif call.data.startswith("audio_quality_"):
-                quality, processing_message_id = call.data.split("_")[2:]
-                user_data[chat_id][processing_message_id]['audio_format'] = quality
+            elif call.data.startswith("select_audio_quality_"):
+                processing_message_id = call.data.split("_")[-1]
                 available_qualities = user_data[chat_id][processing_message_id]['file_info']['qualities']
-                bot.edit_message_text(utils.get_string('select_quality', user_data[chat_id]['language']), chat_id, processing_message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id, processing_message_id, selected_video=user_data[chat_id][processing_message_id].get('video_format'), selected_audio=quality))
+                bot.edit_message_text(
+                    utils.get_string('select_audio_quality', user_data[chat_id]['language']),
+                    chat_id,
+                    processing_message_id,
+                    reply_markup=utils.audio_quality_keyboard(available_qualities, processing_message_id, chat_id)
+                )
             elif call.data.startswith("back_to_main_"):
                 processing_message_id = call.data.split("_")[-1]
                 available_qualities = user_data[chat_id][processing_message_id]['file_info']['qualities']
@@ -300,6 +324,42 @@ def register_handlers(bot):
                 user_data[chat_id][processing_message_id]['output_format'] = output_format
                 available_qualities = user_data[chat_id][processing_message_id]['file_info']['qualities']
                 bot.edit_message_text(utils.get_string('select_quality', user_data[chat_id]['language']), chat_id, processing_message_id, reply_markup=utils.quality_keyboard(available_qualities, chat_id, processing_message_id, selected_video=user_data[chat_id][processing_message_id].get('video_format'), selected_audio=user_data[chat_id][processing_message_id].get('audio_format')))
+            elif call.data.startswith("select_audio_language_"):
+                processing_message_id = call.data.split("_")[-1]
+                audio_langs = user_data[chat_id][processing_message_id].get('audio_langs', {})
+                selected_lang = user_data[chat_id][processing_message_id].get('selected_audio_lang', 'orig')
+                
+                keyboard = utils.audio_language_keyboard(audio_langs, selected_lang, processing_message_id, user_data[chat_id]['language'])
+                bot.edit_message_text(
+                    utils.get_string('select_audio_language', user_data[chat_id]['language']),
+                    chat_id,
+                    processing_message_id,
+                    reply_markup=keyboard
+                )
+
+            elif call.data.startswith("audio_lang_"):
+                parts = call.data.split("_")
+                selected_lang = parts[2]
+                processing_message_id = parts[3]
+                
+                user_data[chat_id][processing_message_id]['selected_audio_lang'] = selected_lang
+                
+                if 'audio_format' in user_data[chat_id][processing_message_id]:
+                    del user_data[chat_id][processing_message_id]['audio_format']
+                
+                available_qualities = user_data[chat_id][processing_message_id]['file_info']['qualities']
+                bot.edit_message_text(
+                    utils.get_string('select_quality', user_data[chat_id]['language']),
+                    chat_id,
+                    processing_message_id,
+                    reply_markup=utils.quality_keyboard(
+                        available_qualities,
+                        chat_id,
+                        processing_message_id,
+                        selected_video=user_data[chat_id][processing_message_id].get('video_format'),
+                        selected_audio=user_data[chat_id][processing_message_id].get('audio_format')
+                    )
+                )
             elif call.data.startswith("crop_time_"):
                 processing_message_id = call.data.split("_")[2]
                 bot.edit_message_text(utils.get_string('enter_start_time', user_data[chat_id]['language']), chat_id, processing_message_id )

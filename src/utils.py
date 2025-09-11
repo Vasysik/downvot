@@ -9,6 +9,27 @@ logger = logging.getLogger(__name__)
 
 VIDEO_FORMATS = ['mp4', 'mkv', 'webm', 'avi', 'mov', 'flv', '3gp']
 AUDIO_FORMATS = ['mp3', 'm4a', 'opus', 'flac', 'wav', 'aac', 'ogg']
+LANGUAGE_NAMES = {
+    'en': 'English',
+    'ru': 'Русский',
+    'es': 'Español',
+    'fr': 'Français',
+    'de': 'Deutsch',
+    'it': 'Italiano',
+    'pt': 'Português',
+    'pl': 'Polski',
+    'tr': 'Türkçe',
+    'ja': '日本語',
+    'ko': '한국어',
+    'zh': '中文',
+    'ar': 'العربية',
+    'hi': 'हिन्दी',
+    'id': 'Bahasa Indonesia',
+    'vi': 'Tiếng Việt',
+    'th': 'ไทย',
+    'bn': 'বাংলা',
+    'orig': '🎬 Original'
+}
 
 def get_string(key, lang_code=DEFAULT_LANGUAGE):
     if not lang_code in LANGUAGES: lang_code = DEFAULT_LANGUAGE
@@ -277,24 +298,54 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
         default_video = selected_video
     
     if user_data[chat_id][processing_message_id]['file_type'] == 'video':
-        if qualities["video"][default_video]["filesize"]: total_size += qualities["video"][default_video]["filesize"]
-        elif qualities["video"][default_video].get("filesize_approx", 0): total_size += qualities["video"][default_video]["filesize_approx"]
+        if qualities["video"][default_video]["filesize"]: 
+            total_size += qualities["video"][default_video]["filesize"]
+        elif qualities["video"][default_video].get("filesize_approx", 0): 
+            total_size += qualities["video"][default_video]["filesize_approx"]
         video_format = qualities["video"][default_video]
         dynamic_range = 'HDR' if video_format['dynamic_range'] == 'HDR10' else ''
-        keyboard.row(InlineKeyboardButton(f"{get_string('video_quality', user_data[chat_id]['language'])} {video_format['height']}p{video_format['fps']} {dynamic_range}", callback_data=f"select_video_quality_{processing_message_id}"))
-
-    audio_qualities = list(qualities["audio"].items())
-    if not selected_audio:
-        default_audio = audio_qualities[-1][0]
+        keyboard.row(InlineKeyboardButton(
+            f"{get_string('video_quality', user_data[chat_id]['language'])} {video_format['height']}p{video_format['fps']} {dynamic_range}", 
+            callback_data=f"select_video_quality_{processing_message_id}"
+        ))
+    
+    selected_lang = user_data[chat_id][processing_message_id].get('selected_audio_lang')
+    audio_langs = user_data[chat_id][processing_message_id].get('audio_langs', {})
+    
+    if audio_langs and len(audio_langs) > 1:
+        lang_name = LANGUAGE_NAMES.get(selected_lang, selected_lang.upper() if selected_lang else 'Auto')
+        keyboard.row(InlineKeyboardButton(
+            f"{get_string('audio_language', user_data[chat_id]['language'])}: {lang_name}",
+            callback_data=f"select_audio_language_{processing_message_id}"
+        ))
+    
+    filtered_audio = {}
+    if selected_lang and audio_langs:
+        for fmt_id in audio_langs.get(selected_lang, []):
+            if fmt_id in qualities["audio"]:
+                filtered_audio[fmt_id] = qualities["audio"][fmt_id]
+    else:
+        filtered_audio = qualities["audio"]
+    
+    audio_qualities = list(filtered_audio.items())
+    if not selected_audio or selected_audio not in filtered_audio:
+        default_audio = audio_qualities[-1][0] if audio_qualities else list(qualities["audio"].keys())[-1]
         user_data[chat_id][processing_message_id]['audio_format'] = default_audio
     else: 
         default_audio = selected_audio
-    if qualities["audio"][default_audio]["filesize"]: total_size += qualities["audio"][default_audio]["filesize"]
-    elif qualities["audio"][default_audio].get("filesize_approx", 0): total_size += qualities["audio"][default_audio]["filesize_approx"]
+    
+    if default_audio in qualities["audio"]:
+        if qualities["audio"][default_audio]["filesize"]: 
+            total_size += qualities["audio"][default_audio]["filesize"]
+        elif qualities["audio"][default_audio].get("filesize_approx", 0): 
+            total_size += qualities["audio"][default_audio]["filesize_approx"]
 
-    audio_format = qualities["audio"][default_audio]
-    keyboard.row(InlineKeyboardButton(f"{get_string('audio_quality', user_data[chat_id]['language'])} {audio_format['abr']}kbps", callback_data=f"select_audio_quality_{processing_message_id}"))
-
+        audio_format = qualities["audio"][default_audio]
+        keyboard.row(InlineKeyboardButton(
+            f"{get_string('audio_quality', user_data[chat_id]['language'])} {audio_format['abr']}kbps",
+            callback_data=f"select_audio_quality_{processing_message_id}"
+        ))
+    
     output_format = user_data[chat_id][processing_message_id].get('output_format', 'mp4' if user_data[chat_id][processing_message_id]['file_type'] == 'video' else 'mp3')
     format_strings = get_string('video_formats' if user_data[chat_id][processing_message_id]['file_type'] == 'video' else 'audio_formats', user_data[chat_id]['language'])
     format_label = format_strings.get(output_format, output_format.upper())
@@ -342,29 +393,74 @@ def video_quality_keyboard(qualities, processing_message_id):
     keyboard.row(InlineKeyboardButton("<-", callback_data=f"back_to_main_{processing_message_id}"))
     return keyboard
 
-def audio_quality_keyboard(qualities, processing_message_id):
+def audio_quality_keyboard(qualities, processing_message_id, chat_id=None):
     keyboard = InlineKeyboardMarkup()
     row = []
+    
+    selected_lang = user_data[chat_id][processing_message_id].get('selected_audio_lang') if chat_id else None
+    audio_langs = user_data[chat_id][processing_message_id].get('audio_langs', {}) if chat_id else {}
+    
+    filtered_audio = {}
+    if selected_lang and audio_langs:
+        for fmt_id in audio_langs.get(selected_lang, []):
+            if fmt_id in qualities["audio"]:
+                filtered_audio[fmt_id] = qualities["audio"][fmt_id]
+    else:
+        filtered_audio = qualities["audio"]
+    
     unique_qualities = {}
-    for quality, data in qualities["audio"].items():
+    for quality, data in filtered_audio.items():
         abr = data['abr']
         key = f'{abr}'
-        unique_qualities[key] = (quality, data)
+        if key not in unique_qualities or data.get('filesize', 0) > unique_qualities[key][1].get('filesize', 0):
+            unique_qualities[key] = (quality, data)
     
-    for key, (quality, data) in unique_qualities.items():
+    for key, (quality, data) in sorted(unique_qualities.items(), key=lambda x: x[1][1]['abr']):
         if len(row) == 2:
             keyboard.row(*row)
             row = []
         
         size = "≈?MB"
-        if data['filesize']: size = f"≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
-        elif data.get('filesize_approx', 0): size = f"≈{round(data.get('filesize_approx', 0) / (1024 * 1024), 1)}MB"
+        if data['filesize']: 
+            size = f"≈{round(data['filesize'] / (1024 * 1024), 1)}MB"
+        elif data.get('filesize_approx', 0): 
+            size = f"≈{round(data.get('filesize_approx', 0) / (1024 * 1024), 1)}MB"
         
         label = f"{data['abr']}kbps {size}"
         row.append(InlineKeyboardButton(label, callback_data=f"audio_quality_{quality}_{processing_message_id}"))
+    
     if row:
         keyboard.row(*row)
-    keyboard.row(InlineKeyboardButton("<-", callback_data=f"back_to_main_{processing_message_id}"))
+    keyboard.row(InlineKeyboardButton("←", callback_data=f"back_to_main_{processing_message_id}"))
+    return keyboard
+
+def audio_language_keyboard(audio_langs, selected_lang, processing_message_id, lang_code):
+    keyboard = InlineKeyboardMarkup()
+    row = []
+    
+    sorted_langs = []
+    if 'orig' in audio_langs:
+        sorted_langs.append('orig')
+    for lang in sorted(audio_langs.keys()):
+        if lang != 'orig':
+            sorted_langs.append(lang)
+    
+    for lang in sorted_langs:
+        lang_name = LANGUAGE_NAMES.get(lang, lang.upper())
+        if lang == selected_lang:
+            lang_name = "✅ " + lang_name
+        
+        callback_data = f"audio_lang_{lang}_{processing_message_id}"
+        row.append(InlineKeyboardButton(lang_name, callback_data=callback_data))
+        
+        if len(row) == 2:
+            keyboard.row(*row)
+            row = []
+    
+    if row:
+        keyboard.row(*row)
+    
+    keyboard.row(InlineKeyboardButton("←", callback_data=f"back_to_main_{processing_message_id}"))
     return keyboard
 
 def admin_keyboard(lang_code):
