@@ -1,5 +1,5 @@
 from functools import wraps
-from config import load_config, AUTO_CREATE_KEY, AUTO_ALLOWED_CHANNEL, DEFAULT_LANGUAGE, LANGUAGES, MAX_GET_RESULT_RETRIES
+from config import load_config, AUTO_CREATE_KEY, AUTO_ALLOWED_CHANNEL, DEFAULT_LANGUAGE, LANGUAGES, MAX_GET_RESULT_RETRIES, MAX_TELEGRAM_FILE_SIZE
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery, InputMediaPhoto
 from yt_dlp_host_api.exceptions import APIError
 from state import user_data, bot, admin, api
@@ -80,6 +80,7 @@ def authorized_users_only(func):
         if chat_id not in user_data: 
             user_data[chat_id] = {}
             user_data[chat_id]['language'] = message.from_user.language_code
+            user_data[chat_id]['is_premium'] = user_can_get_link(username)
             logger.info(f"New user data created for {username}")
         
         if AUTO_ALLOWED_CHANNEL and not CHAT_MEMBER:
@@ -158,7 +159,7 @@ def process_request(chat_id, processing_message_id):
         video_format_info = info['qualities']["video"][video_format] if file_type == 'video' else None
         audio_format_info = info['qualities']["audio"][audio_format]
         
-        if info['is_live']:
+        if info['is_live'] and not user_data[chat_id].get('is_premium', False):
             if file_type == 'video':
                 task = client.send_task.get_live_video(url=url, duration=duration, video_format=video_format, audio_format=audio_format, output_format=output_format)
             else:
@@ -382,10 +383,11 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
         actual_duration = (end_time or duration) - (start_time or 0)
         total_size = total_size * (actual_duration / duration)
     user_data[chat_id][processing_message_id]['total_size'] = total_size
-    keyboard.row(InlineKeyboardButton(
-        f"{get_string('download_button', user_data[chat_id]['language'])} ≈{round(total_size / (1024 * 1024), 1)}MB", 
-        callback_data=f"quality_{processing_message_id}_{default_video}_{default_audio}"
-    ))
+    btn_text = f"{get_string('download_button', user_data[chat_id]['language'])} ≈{round(total_size / (1024*1024),1)}MB"
+    if (total_size > MAX_TELEGRAM_FILE_SIZE) and (not user_data[chat_id].get('is_premium', False)):
+        keyboard.row(InlineKeyboardButton(text="🚫 " + btn_text, callback_data='deny_bigfile'))
+    else:
+        keyboard.row(InlineKeyboardButton(btn_text, callback_data=f"quality_{processing_message_id}_{default_video}_{default_audio}"))
     
     return keyboard
 

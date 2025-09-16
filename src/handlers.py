@@ -498,6 +498,9 @@ def register_handlers(bot):
                         )
                 else:
                     bot.send_message(call.message.chat.id, utils.get_string('unknown_source', user_data[call.message.chat.id]['language']))
+            elif call.data == 'deny_bigfile':
+                bot.answer_callback_query(call.id, utils.get_string('no_access_link', user_data[chat_id]['language']), show_alert=True)
+                return
 
         except Exception as e:
             logger.error(f"Error processing callback query: {str(e)}")
