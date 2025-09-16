@@ -6,6 +6,7 @@
     "no_admin_access": "Przepraszamy, nie masz dostępu do panelu administratora.",
     "no_access": "Przepraszamy, nie masz dostępu do tego bota.",
     "no_access_chanel": "Aby korzystać z bota, musisz być subskrybentem kanału: {channel}",
+    "no_access_link": "Plik jest zbyt duży, aby wysłać go do Telegrama.\nMożesz wybrać niższą jakość lub skontaktować się z administratorem w celu uzyskania rozszerzonego dostępu.",
     "enter_new_key_username": "Wprowadź nazwę użytkownika dla nowego klucza:",
     "no_key_creation_access": "Przepraszamy, nie masz dostępu do tworzenia kluczy.",
     "enter_key_delete_username": "Wprowadź nazwę użytkownika, którego klucz należy usunąć:",

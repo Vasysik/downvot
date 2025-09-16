@@ -6,6 +6,7 @@
     "no_admin_access": "Sorry, you don't have access to the admin panel.",
     "no_access": "Sorry, you don't have access to this bot.",
     "no_access_chanel": "To use the bot, you need to be subscribed to the channel: {channel}",
+    "no_access_link": "The file is too large to send to Telegram.\nYou can choose lower quality or contact the administrator for extended access.",
     "enter_new_key_username": "Enter a username for the new key:",
     "no_key_creation_access": "Sorry, you don't have access to create keys.",
     "enter_key_delete_username": "Enter the username whose key needs to be deleted:",

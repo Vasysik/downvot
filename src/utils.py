@@ -58,6 +58,9 @@ def parse_timestamp(timestamp):
     except ValueError:
         raise ValueError("Invalid timestamp format. Use HH:MM:SS or '-'")
 
+def user_can_get_link(username: str) -> bool:
+    return username in load_config()['PREMIUM_USERS']
+
 def authorized_users_only(func):
     @wraps(func)
     def wrapper(message):
@@ -145,6 +148,7 @@ def process_request(chat_id, processing_message_id):
         start_time = processing_data.get('start_time', None)
         end_time = processing_data.get('end_time', None)
         force_keyframes = processing_data.get('force_keyframes', False)
+        link_allowed = user_can_get_link(username)
 
         if start_time: start_time = format_duration(start_time)
         if end_time: end_time = format_duration(end_time)
@@ -181,17 +185,20 @@ def process_request(chat_id, processing_message_id):
                 file_size_out_of_range = True
 
         if file_size_out_of_range:
+            if not link_allowed:
+                bot.send_message(chat_id, get_string('no_access_link', user_data[chat_id]['language']))
+                return
             logger.info(f"File size exceeds limit for user {username}. Sending download link.")
             if file_type == 'video': 
                 message = get_string('download_complete_video', user_data[chat_id]['language'])
                 caption = message.format(url=url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps")
                 if start_time or end_time: caption += "\n"+get_string('download_fragment', user_data[chat_id]['language']).format(start_time=start_time, end_time=end_time)
-                bot.send_photo(chat_id, info['thumbnail'], caption=caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url))
+                bot.send_photo(chat_id, info['thumbnail'], caption=caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url, link_allowed))
             else: 
                 message = get_string('download_complete_audio', user_data[chat_id]['language'])
                 caption = message.format(url=url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps")
                 if start_time or end_time: caption += "\n"+get_string('download_fragment', user_data[chat_id]['language']).format(start_time=start_time, end_time=end_time)
-                bot.send_message(chat_id, caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url))
+                bot.send_message(chat_id, caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url, link_allowed))
         else:
             logger.info(f"Preparing to send file for user {username}")
             filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'][:48])
@@ -207,12 +214,12 @@ def process_request(chat_id, processing_message_id):
                 message = get_string('download_complete_video', user_data[chat_id]['language'])
                 caption = message.format(url=url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps")
                 if start_time or end_time: caption += "\n"+get_string('download_fragment', user_data[chat_id]['language']).format(start_time=start_time, end_time=end_time)
-                bot.send_video(chat_id, file_obj, caption=caption, supports_streaming=True, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url))
+                bot.send_video(chat_id, file_obj, caption=caption, supports_streaming=True, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url, link_allowed))
             else: 
                 message = get_string('download_complete_audio', user_data[chat_id]['language'])
                 caption = message.format(url=url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps")
                 if start_time or end_time: caption += "\n"+get_string('download_fragment', user_data[chat_id]['language']).format(start_time=start_time, end_time=end_time)
-                bot.send_audio(chat_id, file_obj, caption=caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url))
+                bot.send_audio(chat_id, file_obj, caption=caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url, link_allowed))
         logger.info(f"Request processing completed successfully for user {username}")
     except APIError as e:
         logger.error(f"API Error for user {chat_id}: {str(e)}")
@@ -502,10 +509,12 @@ def duration_keyboard(lang_code, processing_message_id):
         keyboard.row(*row)
     return keyboard
 
-def file_link_keyboard(lang_code, url):
-    keyboard = InlineKeyboardMarkup()
-    keyboard.row(InlineKeyboardButton(get_string('file_link', lang_code), url=url))
-    return keyboard
+def file_link_keyboard(lang_code, url, allowed=False):
+    if not allowed:
+        return None
+    kb = InlineKeyboardMarkup()
+    kb.row(InlineKeyboardButton(get_string('file_link', lang_code), url=url))
+    return kb
 
 def language_keyboard():
     keyboard = InlineKeyboardMarkup()
