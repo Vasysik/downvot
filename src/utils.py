@@ -149,13 +149,17 @@ def clean_youtube_url(url):
     return url
 
 def detect_source(url):
-    youtube_patterns = [r'(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/']
-    for pattern in youtube_patterns:
-        if re.search(pattern, url):
-            cleaned_url = clean_youtube_url(url)
-            return 'YouTube', cleaned_url
-    return None, url
+    parsed = urlparse(url)
+    hostname = parsed.hostname or ""
     
+    valid_domains = ["youtube.com", "www.youtube.com", "youtu.be"]
+
+    if hostname in valid_domains:
+        cleaned_url = clean_youtube_url(url)
+        return 'YouTube', cleaned_url
+    
+    return None, url
+
 def process_request(chat_id, processing_message_id):
     try:
         logger.info(f"Starting request processing for user {chat_id}, message ID: {processing_message_id}")
