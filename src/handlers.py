@@ -67,7 +67,7 @@ def register_handlers(bot):
             bot.reply_to(message, utils.get_string('send_video_link', user_data[chat_id]['language']))
             return
         
-        source = utils.detect_source(link)
+        source, cleaned_url = utils.detect_source(link)
         if not source:
             bot.reply_to(message, utils.get_string('unknown_source', user_data[message.chat.id]['language']))
             return
@@ -80,7 +80,7 @@ def register_handlers(bot):
         )
         processing_message_id = str(processing_message.message_id)
         user_data[chat_id][processing_message_id] = {
-            'url': link,
+            'url': cleaned_url,
             'source': source
         }
 
@@ -134,16 +134,16 @@ def register_handlers(bot):
     @utils.authorized_users_only
     def handle_message(message):
         if message.text.startswith(('http://', 'https://')):
-            source = utils.detect_source(message.text)
+            source, cleaned_url = utils.detect_source(message.text)
             if source:
-                logger.info(f"Received link from user {message.from_user.username}: {message.text}")
+                logger.info(f"Received link from user {message.from_user.username}: {message.text} -> cleaned: {cleaned_url}")
                 
                 processing_message = bot.reply_to(message, utils.get_string('getting_video_info', user_data[message.chat.id]['language']))
                 processing_message_id = str(processing_message.message_id)
                 
                 try:
                     client = user_data[message.chat.id]['client']
-                    info = client.get_info(url=message.text).get_json(['qualities', 'title', 'thumbnail', 'is_live', 'duration', 'language'])
+                    info = client.get_info(url=cleaned_url).get_json(['qualities', 'title', 'thumbnail', 'is_live', 'duration', 'language'])
                     
                     audio_langs = {}
                     for fmt_id, data in info['qualities']['audio'].items():
@@ -158,7 +158,7 @@ def register_handlers(bot):
                         default_lang = next(iter(audio_langs)) if audio_langs else None
                     
                     user_data[message.chat.id][processing_message_id] = {
-                        'url': message.text,
+                        'url': cleaned_url,
                         'source': source,
                         'file_info': info,
                         'audio_langs': audio_langs,
@@ -303,8 +303,7 @@ def register_handlers(bot):
                         logger.error(f"Error getting video information: {str(e)}")
                         bot.edit_message_text(utils.get_string('video_info_error', user_data[chat_id]['language']), chat_id, processing_message_id)
                         return
-                
-                if info['is_live'] == True:
+                if info.get('is_live', False) == True:
                     bot.edit_message_text(
                         utils.get_string('specify_recording_duration', user_data[chat_id]['language']), 
                         chat_id, 
@@ -449,7 +448,7 @@ def register_handlers(bot):
                     link = f"https://www.youtube.com/watch?v={video_id}"
                 else: 
                     link = f"https://www.youtube.com{result['url_suffix']}"
-                source = utils.detect_source(link)
+                source, cleaned_url = utils.detect_source(link)
 
                 if source:
                     chat_id = call.message.chat.id
@@ -461,7 +460,7 @@ def register_handlers(bot):
                     
                     try:
                         client = user_data[chat_id]['client']
-                        info = client.get_info(url=link).get_json(['qualities', 'title', 'thumbnail', 'is_live', 'duration', 'language'])
+                        info = client.get_info(url=cleaned_url).get_json(['qualities', 'title', 'thumbnail', 'is_live', 'duration', 'language'])
                         
                         audio_langs = {}
                         for fmt_id, data in info['qualities']['audio'].items():
@@ -476,7 +475,7 @@ def register_handlers(bot):
                             default_lang = next(iter(audio_langs)) if audio_langs else None
                         
                         user_data[chat_id][processing_message_id] = {
-                            'url': link,
+                            'url': cleaned_url,
                             'source': source,
                             'file_info': info,
                             'audio_langs': audio_langs,

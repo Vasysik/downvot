@@ -3,6 +3,7 @@ from config import load_config, AUTO_CREATE_KEY, AUTO_ALLOWED_CHANNEL, DEFAULT_L
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery, InputMediaPhoto
 from yt_dlp_host_api.exceptions import APIError
 from state import user_data, bot, admin, api
+from urllib.parse import urlparse, parse_qs
 import logging, io, re, json
 
 logger = logging.getLogger(__name__)
@@ -125,12 +126,35 @@ def authorized_users_only(func):
             bot.reply_to(message, get_string('no_access', user_data[chat_id]['language']))
     return wrapper
 
+def clean_youtube_url(url):
+    try:
+        video_id = None
+        
+        if 'youtu.be/' in url:
+            match = re.search(r'youtu\.be/([a-zA-Z0-9_-]+)', url)
+            if match:
+                video_id = match.group(1)
+        else:
+            parsed = urlparse(url)
+            if parsed.hostname in ['www.youtube.com', 'youtube.com', 'm.youtube.com']:
+                params = parse_qs(parsed.query)
+                if 'v' in params:
+                    video_id = params['v'][0]
+        
+        if video_id:
+            return f"https://www.youtube.com/watch?v={video_id}"
+    except Exception as e:
+        logger.error(f"Error cleaning YouTube URL: {e}")
+    
+    return url
+
 def detect_source(url):
     youtube_patterns = [r'(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/']
     for pattern in youtube_patterns:
         if re.search(pattern, url):
-            return 'YouTube'    
-    return None
+            cleaned_url = clean_youtube_url(url)
+            return 'YouTube', cleaned_url
+    return None, url
     
 def process_request(chat_id, processing_message_id):
     try:
