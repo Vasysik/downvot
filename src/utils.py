@@ -175,7 +175,7 @@ def process_request(chat_id, processing_message_id):
         task_result = task.get_result(max_retries=MAX_GET_RESULT_RETRIES)
         file_url = task_result.get_file_url()
         
-        max_file_size = 50 * 1024 * 1024  # 50 MB
+        max_file_size = MAX_TELEGRAM_FILE_SIZE
         file_size_out_of_range = False
         if total_size > max_file_size:
             file_size_out_of_range = True
