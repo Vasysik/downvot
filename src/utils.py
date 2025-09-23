@@ -151,13 +151,10 @@ def clean_youtube_url(url):
 def detect_source(url):
     parsed = urlparse(url)
     hostname = parsed.hostname or ""
-    
     valid_domains = ["youtube.com", "www.youtube.com", "youtu.be"]
-
     if hostname in valid_domains:
         cleaned_url = clean_youtube_url(url)
         return 'YouTube', cleaned_url
-    
     return None, url
 
 def process_request(chat_id, processing_message_id):
