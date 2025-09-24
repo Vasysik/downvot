@@ -6,6 +6,7 @@
     "no_admin_access": "Przepraszamy, nie masz dostępu do panelu administratora.",
     "no_access": "Przepraszamy, nie masz dostępu do tego bota.",
     "no_access_chanel": "Aby korzystać z bota, musisz być subskrybentem kanału: {channel}",
+    "no_access_link": "Plik jest zbyt duży, aby wysłać go do Telegrama.\nMożesz wybrać niższą jakość lub skontaktować się z administratorem w celu uzyskania rozszerzonego dostępu.",
     "enter_new_key_username": "Wprowadź nazwę użytkownika dla nowego klucza:",
     "no_key_creation_access": "Przepraszamy, nie masz dostępu do tworzenia kluczy.",
     "enter_key_delete_username": "Wprowadź nazwę użytkownika, którego klucz należy usunąć:",
@@ -51,5 +52,28 @@
     "help_text": "Dostępne polecenia:\n/language - zmień język bota\n/pomoc - pokaż tę wiadomość\n/szukaj <żądanie> - wyszukaj film na YouTube\n/pobierz <link> - pobierz film z linku\n\nMożesz wysłać link lub tytuł bezpośrednio do przetworzenia przez bota.",
     "searching": "Wyszukiwanie...",
     "no_results": "Nie znaleziono żadnych wyników dla Twojego wyszukiwania.",
-    "search_error": "Wystąpił błąd podczas wyszukiwania: {error}"
+    "search_error": "Wystąpił błąd podczas wyszukiwania: {error}",
+    "select_output_format": "Wybierz format pliku:",
+    "output_format": "Format:",
+    "video_formats": {
+        "mp4": "MP4",
+        "mkv": "MKV",
+        "webm": "WebM",
+        "avi": "AVI",
+        "mov": "MOV",
+        "flv": "FLV",
+        "3gp": "3GP"
+    },
+    "audio_formats": {
+        "mp3": "MP3",
+        "m4a": "M4A",
+        "opus": "Opus",
+        "flac": "FLAC",
+        "wav": "WAV",
+        "aac": "AAC",
+        "ogg": "OGG"
+    },
+    "audio_language": "Język audio",
+    "select_audio_language": "Wybierz język audio:",
+    "original_language": "Oryginalny"
 }

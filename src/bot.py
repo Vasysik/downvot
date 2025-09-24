@@ -1,6 +1,7 @@
 import logging, time
 from telebot.apihelper import ApiTelegramException, types
-from config import load_config
+import telebot.apihelper
+from config import load_config, TELEGRAM_API_URL, MAX_FILE_SIZE_MB
 from handlers import register_handlers
 from state import bot
 import utils
@@ -8,6 +9,12 @@ import io
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+if TELEGRAM_API_URL:
+    telebot.apihelper.API_URL = TELEGRAM_API_URL
+    logger.info(f"Using custom Telegram API URL: {TELEGRAM_API_URL}")
+else:
+    logger.info("Using default Telegram API URL")
 
 register_handlers(bot)
 
@@ -86,4 +93,5 @@ def main():
 if __name__ == "__main__":
     config = load_config()
     logger.info("Bot initialized")
+    logger.info(f"Max file size: {MAX_FILE_SIZE_MB} MB")
     main()
