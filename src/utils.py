@@ -255,13 +255,15 @@ def process_request(chat_id, processing_message_id):
 
             logger.info(f"Sending file '{filename}' to user {username}")
             if file_type == 'video': 
-                message = get_string('download_complete_video', user_data[chat_id]['language'])
-                caption = message.format(url=url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps")
-                if start_time or end_time: caption += "\n"+get_string('download_fragment', user_data[chat_id]['language']).format(start_time=start_time, end_time=end_time)
-                
                 if output_format == 'gif':
+                    message = get_string('download_complete_gif', user_data[chat_id]['language'])
+                    caption = message.format(url=url, title=info['title'])
+                    if start_time or end_time: caption += "\n"+get_string('download_fragment', user_data[chat_id]['language']).format(start_time=start_time, end_time=end_time)
                     bot.send_animation(chat_id, file_obj, caption=caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url, link_allowed))
                 else:
+                    message = get_string('download_complete_video', user_data[chat_id]['language'])
+                    caption = message.format(url=url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps")
+                    if start_time or end_time: caption += "\n"+get_string('download_fragment', user_data[chat_id]['language']).format(start_time=start_time, end_time=end_time)
                     bot.send_video(chat_id, file_obj, caption=caption, supports_streaming=True, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url, link_allowed))
             else: 
                 message = get_string('download_complete_audio', user_data[chat_id]['language'])

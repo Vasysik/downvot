@@ -38,6 +38,7 @@
     "second": "sec",
     "download_complete_video": "Your YouTube video is ready!\n<a href='{url}'>{title}</a>\nVideo quality: {video_quality}\nAudio quality: {audio_quality}",
     "download_complete_audio": "Your YouTube audio is ready!\n<a href='{url}'>{title}</a>\nAudio quality: {audio_quality}",
+    "download_complete_gif": "Your YouTube GIF is ready!\n<a href='{url}'>{title}</a>",
     "download_fragment": "Fragment: {start_time}-{end_time}",
     "file_link": "Link to file",
     "select_range": "Range:",

@@ -38,6 +38,7 @@
     "second": "сек",
     "download_complete_video": "Ваше видео с ютуба готово!\n<a href='{url}'>{title}</a>\nКачество видео: {video_quality}\nКачество аудио: {audio_quality}",
     "download_complete_audio": "Ваше аудио с ютуба готово!\n<a href='{url}'>{title}</a>\nКачество аудио: {audio_quality}",
+    "download_complete_gif": "Ваше GIF с ютуба готово!\n<a href='{url}'>{title}</a>",
     "download_fragment": "Фрагмент: {start_time}-{end_time}",
     "file_link": "Ссылка на файл",
     "select_range": "Диапазон:",
