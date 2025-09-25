@@ -64,8 +64,8 @@ def parse_timestamp(timestamp):
 def estimate_gif_size(width: int,
                       height: int,
                       duration_sec: int,
-                      fps: int = 24,
-                      compression_ratio: float = 0.30) -> int:
+                      fps: int = 15,
+                      compression_ratio: float = 1) -> int:
     frames = fps * duration_sec
     uncompressed = width * height * frames
     return int(uncompressed * compression_ratio)
@@ -432,8 +432,8 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
         vg_default = qualities["video"][default_video]
         w_src, h_src = vg_default['width'], vg_default['height']
         if not w_src or not h_src:
-            w_src, h_src = 1280, 720
-        w_out = 720
+            w_src, h_src = 480, 270
+        w_out = 480
         h_out = int(w_out * h_src / w_src)
         total_size = estimate_gif_size(w_out, h_out, actual_duration)
     else:
