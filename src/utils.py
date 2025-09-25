@@ -5,6 +5,7 @@ from yt_dlp_host_api.exceptions import APIError
 from state import user_data, bot, admin, api
 from urllib.parse import urlparse, parse_qs
 import logging, io, re, json
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,15 @@ def parse_timestamp(timestamp):
         return hours * 3600 + minutes * 60 + seconds
     except ValueError:
         raise ValueError("Invalid timestamp format. Use HH:MM:SS or '-'")
+
+def estimate_gif_size(width: int,
+                      height: int,
+                      duration_sec: int,
+                      fps: int = 24,
+                      compression_ratio: float = 0.30) -> int:
+    frames = fps * duration_sec
+    uncompressed = width * height * frames
+    return int(uncompressed * compression_ratio)
 
 def user_can_get_link(username: str) -> bool:
     return username in load_config()['PREMIUM_USERS']
@@ -334,27 +344,31 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
     keyboard = InlineKeyboardMarkup()
     total_size = 0
     
-    # Video quality button
+    output_format = user_data[chat_id][processing_message_id].get(
+        'output_format',
+        'mp4' if user_data[chat_id][processing_message_id]['file_type'] == 'video' else 'mp3'
+    )
+
     video_qualities = list(qualities["video"].items())
     if not selected_video:
         default_video = video_qualities[-1][0]
         user_data[chat_id][processing_message_id]['video_format'] = default_video
-    else: 
+    else:
         default_video = selected_video
-    
-    if user_data[chat_id][processing_message_id]['file_type'] == 'video':
-        if qualities["video"][default_video]["filesize"]: 
-            total_size += qualities["video"][default_video]["filesize"]
-        elif qualities["video"][default_video].get("filesize_approx", 0): 
-            total_size += qualities["video"][default_video]["filesize_approx"]
-        video_format = qualities["video"][default_video]
-        dynamic_range = 'HDR' if video_format['dynamic_range'] == 'HDR10' else ''
-        keyboard.row(InlineKeyboardButton(
-            f"{get_string('video_quality', user_data[chat_id]['language'])} {video_format['height']}p{video_format['fps']} {dynamic_range}", 
-            callback_data=f"select_video_quality_{processing_message_id}"
-        ))
 
-    # Audio quality button
+    if output_format != 'gif':
+        if user_data[chat_id][processing_message_id]['file_type'] == 'video':
+            if qualities["video"][default_video]["filesize"]:
+                total_size += qualities["video"][default_video]["filesize"]
+            elif qualities["video"][default_video].get("filesize_approx", 0):
+                total_size += qualities["video"][default_video]["filesize_approx"]
+            video_format = qualities["video"][default_video]
+            dynamic_range = 'HDR' if video_format['dynamic_range'] == 'HDR10' else ''
+            keyboard.row(InlineKeyboardButton(
+                f"{get_string('video_quality', user_data[chat_id]['language'])} {video_format['height']}p{video_format['fps']} {dynamic_range}",
+                callback_data=f"select_video_quality_{processing_message_id}"
+            ))
+
     selected_lang = user_data[chat_id][processing_message_id].get('selected_audio_lang')
     audio_langs = user_data[chat_id][processing_message_id].get('audio_langs', {})
     
@@ -373,10 +387,10 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
     else: 
         default_audio = selected_audio
     
-    if default_audio in qualities["audio"]:
-        if qualities["audio"][default_audio]["filesize"]: 
+    if output_format != 'gif' and default_audio in qualities["audio"]:
+        if qualities["audio"][default_audio]["filesize"]:
             total_size += qualities["audio"][default_audio]["filesize"]
-        elif qualities["audio"][default_audio].get("filesize_approx", 0): 
+        elif qualities["audio"][default_audio].get("filesize_approx", 0):
             total_size += qualities["audio"][default_audio]["filesize_approx"]
         audio_format = qualities["audio"][default_audio]
         keyboard.row(InlineKeyboardButton(
@@ -384,8 +398,7 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
             callback_data=f"select_audio_quality_{processing_message_id}"
         ))
     
-    # Audio language button (под audio quality)
-    if audio_langs and len(audio_langs) > 1:
+    if output_format != 'gif' and audio_langs and len(audio_langs) > 1:
         original_lang = user_data[chat_id][processing_message_id]['file_info'].get('language')
         if selected_lang == 'orig' and original_lang:
             lang_name = f"{LANGUAGE_NAMES.get(original_lang, original_lang.upper())} ({get_string('original_language', user_data[chat_id]['language'])})"
@@ -396,8 +409,6 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
             callback_data=f"select_audio_language_{processing_message_id}"
         ))
     
-    # Output format button
-    output_format = user_data[chat_id][processing_message_id].get('output_format', 'mp4' if user_data[chat_id][processing_message_id]['file_type'] == 'video' else 'mp3')
     format_strings = get_string('video_formats' if user_data[chat_id][processing_message_id]['file_type'] == 'video' else 'audio_formats', user_data[chat_id]['language'])
     format_label = format_strings.get(output_format, output_format.upper())
     keyboard.row(InlineKeyboardButton(
@@ -405,7 +416,6 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
         callback_data=f"select_output_format_{processing_message_id}"
     ))
 
-    # Time range button
     start_time = user_data[chat_id][processing_message_id].get('start_time')
     end_time = user_data[chat_id][processing_message_id].get('end_time')
     duration = user_data[chat_id][processing_message_id]['file_info']['duration']
@@ -416,9 +426,20 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
         callback_data=f"crop_time_{processing_message_id}"
     ))
 
-    if start_time is not None or end_time is not None:
-        actual_duration = (end_time or duration) - (start_time or 0)
-        total_size = total_size * (actual_duration / duration)
+    actual_duration = (end_time or duration) - (start_time or 0)
+
+    if output_format == 'gif':
+        vg_default = qualities["video"][default_video]
+        w_src, h_src = vg_default['width'], vg_default['height']
+        if not w_src or not h_src:
+            w_src, h_src = 1280, 720
+        w_out = 720
+        h_out = int(w_out * h_src / w_src)
+        total_size = estimate_gif_size(w_out, h_out, actual_duration)
+    else:
+        if start_time is not None or end_time is not None:
+            total_size = total_size * (actual_duration / duration)
+
     user_data[chat_id][processing_message_id]['total_size'] = total_size
     btn_text = f"{get_string('download_button', user_data[chat_id]['language'])} ≈{round(total_size / (1024*1024),1)}MB"
     
