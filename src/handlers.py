@@ -500,6 +500,9 @@ def register_handlers(bot):
             elif call.data == 'deny_bigfile':
                 bot.answer_callback_query(call.id, utils.get_string('no_access_link', user_data[chat_id]['language']), show_alert=True)
                 return
+            elif call.data == 'deny_gif_size':
+                bot.answer_callback_query(call.id, utils.get_string('gif_size_limit_error', user_data[chat_id]['language']), show_alert=True)
+                return
 
         except Exception as e:
             logger.error(f"Error processing callback query: {str(e)}")
