@@ -65,7 +65,7 @@ def estimate_gif_size(width: int,
                       height: int,
                       duration_sec: int,
                       fps: int = 15,
-                      compression_ratio: float = 0.2) -> int:
+                      compression_ratio: float = 0.24) -> int:
     frames = fps * duration_sec
     uncompressed = width * height * frames
     return int(uncompressed * compression_ratio)
