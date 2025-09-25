@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 VIDEO_FORMATS = ['mp4', 'mkv', 'webm', 'avi', 'mov', 'flv', 'gif']
 AUDIO_FORMATS = ['mp3', 'm4a', 'opus', 'flac', 'wav', 'aac', 'ogg']
-MAX_GIF_SIZE = 10 * 1024 * 1024
+MAX_GIF_SIZE = 30 * 1024 * 1024
 LANGUAGE_NAMES = {
     'en': 'English',
     'ru': 'Русский',
@@ -65,7 +65,7 @@ def estimate_gif_size(width: int,
                       height: int,
                       duration_sec: int,
                       fps: int = 15,
-                      compression_ratio: float = 1) -> int:
+                      compression_ratio: float = 0.25) -> int:
     frames = fps * duration_sec
     uncompressed = width * height * frames
     return int(uncompressed * compression_ratio)
