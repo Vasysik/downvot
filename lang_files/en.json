@@ -55,6 +55,8 @@
     "search_error": "An error occurred while searching: {error}",
     "select_output_format": "Select output format:",
     "output_format": "Format:",
+    "gif_too_large": "The GIF file is too large. Maximum allowed size is 10 MB.\nPlease choose a lower quality or a different format.",
+    "gif_size_limit_error": "GIF files larger than 10 MB cannot be sent via Telegram. Please choose a lower quality or a different format.",
     "video_formats": {
         "mp4": "MP4",
         "mkv": "MKV",
@@ -62,7 +64,7 @@
         "avi": "AVI",
         "mov": "MOV",
         "flv": "FLV",
-        "3gp": "3GP"
+        "gif": "GIF"
     },
     "audio_formats": {
         "mp3": "MP3",

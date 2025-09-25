@@ -8,8 +8,9 @@ import logging, io, re, json
 
 logger = logging.getLogger(__name__)
 
-VIDEO_FORMATS = ['mp4', 'mkv', 'webm', 'avi', 'mov', 'flv', '3gp']
+VIDEO_FORMATS = ['mp4', 'mkv', 'webm', 'avi', 'mov', 'flv', 'gif']
 AUDIO_FORMATS = ['mp3', 'm4a', 'opus', 'flac', 'wav', 'aac', 'ogg']
+MAX_GIF_SIZE = 10 * 1024 * 1024
 LANGUAGE_NAMES = {
     'en': 'English',
     'ru': 'Русский',
@@ -209,6 +210,13 @@ def process_request(chat_id, processing_message_id):
             file_size = file_obj.getbuffer().nbytes
             if file_size > max_file_size:
                 file_size_out_of_range = True
+        
+        if output_format == 'gif' and not file_size_out_of_range:
+            actual_size = file_size if 'file_obj' in locals() else total_size
+            if actual_size > MAX_GIF_SIZE:
+                bot.edit_message_text(get_string('gif_too_large', user_data[chat_id]['language']), chat_id, processing_message_id)
+                bot.send_message(chat_id, get_string('more_requests', user_data[chat_id]['language']))
+                return
 
         if file_size_out_of_range:
             if not link_allowed:
@@ -240,7 +248,11 @@ def process_request(chat_id, processing_message_id):
                 message = get_string('download_complete_video', user_data[chat_id]['language'])
                 caption = message.format(url=url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps")
                 if start_time or end_time: caption += "\n"+get_string('download_fragment', user_data[chat_id]['language']).format(start_time=start_time, end_time=end_time)
-                bot.send_video(chat_id, file_obj, caption=caption, supports_streaming=True, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url, link_allowed))
+                
+                if output_format == 'gif':
+                    bot.send_animation(chat_id, file_obj, caption=caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url, link_allowed))
+                else:
+                    bot.send_video(chat_id, file_obj, caption=caption, supports_streaming=True, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url, link_allowed))
             else: 
                 message = get_string('download_complete_audio', user_data[chat_id]['language'])
                 caption = message.format(url=url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps")
@@ -409,7 +421,10 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
         total_size = total_size * (actual_duration / duration)
     user_data[chat_id][processing_message_id]['total_size'] = total_size
     btn_text = f"{get_string('download_button', user_data[chat_id]['language'])} ≈{round(total_size / (1024*1024),1)}MB"
-    if (total_size > MAX_TELEGRAM_FILE_SIZE) and (not user_data[chat_id].get('is_premium', False)):
+    
+    if output_format == 'gif' and total_size > MAX_GIF_SIZE:
+        keyboard.row(InlineKeyboardButton(text="🚫 " + btn_text, callback_data='deny_gif_size'))
+    elif (total_size > MAX_TELEGRAM_FILE_SIZE) and (not user_data[chat_id].get('is_premium', False)):
         keyboard.row(InlineKeyboardButton(text="🚫 " + btn_text, callback_data='deny_bigfile'))
     else:
         keyboard.row(InlineKeyboardButton(btn_text, callback_data=f"quality_{processing_message_id}_{default_video}_{default_audio}"))

@@ -55,6 +55,8 @@
     "search_error": "Wystąpił błąd podczas wyszukiwania: {error}",
     "select_output_format": "Wybierz format pliku:",
     "output_format": "Format:",
+    "gif_too_large": "Plik GIF jest za duży. Maksymalny dozwolony rozmiar to 10 MB.\nProszę wybrać niższą jakość lub inny format.",
+    "gif_size_limit_error": "Pliki GIF większe niż 10 MB nie mogą być wysyłane przez Telegram. Proszę wybrać niższą jakość lub inny format.",
     "video_formats": {
         "mp4": "MP4",
         "mkv": "MKV",
@@ -62,7 +64,7 @@
         "avi": "AVI",
         "mov": "MOV",
         "flv": "FLV",
-        "3gp": "3GP"
+        "gif": "GIF"
     },
     "audio_formats": {
         "mp3": "MP3",
