@@ -78,6 +78,5 @@
     },
     "audio_language": "Язык озвучки",
     "select_audio_language": "Выберите язык озвучки:",
-    "original_language": "Оригинал",
-    "inline_download_button": "Скачать"
+    "original_language": "Оригинал"
 }
