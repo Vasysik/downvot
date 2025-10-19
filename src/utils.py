@@ -183,16 +183,16 @@ def process_request(chat_id, processing_message_id):
         logger.info(f"Request details for user {username}: file_type={file_type}, video_format={video_format}, audio_format={audio_format}, output_format={output_format}, duration={duration}")
 
         video_format_info = info['qualities']["video"][video_format] if file_type == 'video' else None
-        audio_format_info = info['qualities']["audio"][audio_format]
-
-        api_output_format = output_format
-        api_audio_format = audio_format
-
-        if output_format == 'gif':
-            api_output_format = 'mp4'
-            api_audio_format = None
-            logger.info("GIF selected. Requesting MP4 with no audio from the API.")
         
+        is_gif = (output_format == 'gif')
+        
+        api_output_format = 'mp4' if is_gif else output_format
+        api_audio_format = None if is_gif else audio_format
+        
+        audio_format_info = None
+        if not is_gif:
+            audio_format_info = info['qualities']["audio"][audio_format]
+
         if info['is_live'] and not user_data[chat_id].get('is_premium', False):
             if file_type == 'video':
                 task = client.send_task.get_live_video(url=url, duration=duration, video_format=video_format, audio_format=api_audio_format, output_format=api_output_format)
@@ -225,8 +225,9 @@ def process_request(chat_id, processing_message_id):
                 return
             logger.info(f"File size exceeds limit for user {username}. Sending download link.")
             if file_type == 'video': 
+                caption_audio_quality = f"\n{get_string('audio_quality', user_data[chat_id]['language'])} {audio_format_info['abr']}kbps" if not is_gif and audio_format_info else ""
                 message = get_string('download_complete_video', user_data[chat_id]['language'])
-                caption = message.format(url=url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps")
+                caption = message.format(url=url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps" if not is_gif and audio_format_info else "")
                 if start_time or end_time: caption += "\n"+get_string('download_fragment', user_data[chat_id]['language']).format(start_time=start_time, end_time=end_time)
                 bot.send_photo(chat_id, info['thumbnail'], caption=caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url, link_allowed))
             else: 
@@ -239,7 +240,7 @@ def process_request(chat_id, processing_message_id):
             filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'][:48])
             filename = re.sub(r'\s+', '_', filename) + f'_DownVot'
             if file_type == 'video': 
-                actual_output_format = 'mp4' if output_format == 'gif' else output_format
+                actual_output_format = 'mp4' if is_gif else output_format
                 filename += f"_{video_format_info['height']}p{video_format_info['fps']}.{actual_output_format}"
             else: 
                 filename += f"_{audio_format_info['abr']}kbps.{output_format}"
@@ -247,7 +248,7 @@ def process_request(chat_id, processing_message_id):
 
             logger.info(f"Sending file '{filename}' to user {username}")
             if file_type == 'video': 
-                if output_format == 'gif':
+                if is_gif:
                     message = get_string('download_complete_gif', user_data[chat_id]['language'])
                     caption = message.format(url=url, title=info['title'])
                     if start_time or end_time: caption += "\n"+get_string('download_fragment', user_data[chat_id]['language']).format(start_time=start_time, end_time=end_time)
