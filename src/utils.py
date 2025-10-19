@@ -128,7 +128,7 @@ def authorized_users_only(func):
     return wrapper
 
 def clean_youtube_url(url):
-    if not url or len(url) > 256:
+    if not url or len(url) > 512:
         return None
     try:
         if not url.startswith(('http://', 'https://')):
