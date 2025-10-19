@@ -128,34 +128,44 @@ def authorized_users_only(func):
     return wrapper
 
 def clean_youtube_url(url):
+    if not url or len(url) > 64:
+        return None
     try:
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+
+        parsed = urlparse(url)
+        hostname = (parsed.hostname or '').lower()
         video_id = None
         
-        if 'youtu.be/' in url:
-            match = re.search(r'youtu\.be/([a-zA-Z0-9_-]+)', url)
+        if 'youtu.be' in hostname:
+            match = re.search(r'youtu\.be/([^?&/]+)', url)
             if match:
                 video_id = match.group(1)
-        else:
-            parsed = urlparse(url)
-            if parsed.hostname in ['www.youtube.com', 'youtube.com', 'm.youtube.com']:
-                params = parse_qs(parsed.query)
-                if 'v' in params:
-                    video_id = params['v'][0]
+        elif 'youtube.com' in hostname:
+            params = parse_qs(parsed.query)
+            video_id = params.get('v', [None])[0]
+            if not video_id:
+                match = re.search(r'youtube\.com/(?:shorts|embed)/([^?&/]+)', url)
+                if match:
+                    video_id = match.group(1)
         
-        if video_id:
+        if video_id and re.match(r'^[a-zA-Z0-9_-]{11}$', video_id):
             return f"https://www.youtube.com/watch?v={video_id}"
+
     except Exception as e:
-        logger.error(f"Error cleaning YouTube URL: {e}")
-    
-    return url
+        print(f"Error cleaning YouTube URL: {e}")
+
+    return None
 
 def detect_source(url):
     parsed = urlparse(url)
-    hostname = parsed.hostname or ""
-    valid_domains = ["youtube.com", "www.youtube.com", "youtu.be"]
-    if hostname in valid_domains:
+    hostname = (parsed.hostname or "").lower()
+    youtube_domains = ["youtube.com", "www.youtube.com", "youtu.be", "m.youtube.com"]
+    if hostname in youtube_domains:
         cleaned_url = clean_youtube_url(url)
-        return 'YouTube', cleaned_url
+        if cleaned_url:
+            return 'YouTube', cleaned_url
     return None, url
 
 def process_request(chat_id, processing_message_id):
@@ -199,13 +209,10 @@ def process_request(chat_id, processing_message_id):
             else:
                 task = client.send_task.get_live_audio(url=url, duration=duration, audio_format=audio_format, output_format=output_format)
         elif file_type == 'video':
-            if is_gif:
-                task = client.send_task.get_video(url=url, video_format=video_format, output_format=api_output_format, start_time=start_time, end_time=end_time, force_keyframes=force_keyframes)
-            else:
-                task = client.send_task.get_video(url=url, video_format=video_format, audio_format=audio_format, output_format=output_format, start_time=start_time, end_time=end_time, force_keyframes=force_keyframes)
+            task = client.send_task.get_video(url=url, video_format=video_format, audio_format=api_audio_format, output_format=api_output_format, start_time=start_time, end_time=end_time, force_keyframes=force_keyframes)
         else:
             task = client.send_task.get_audio(url=url, audio_format=audio_format, output_format=output_format, start_time=start_time, end_time=end_time, force_keyframes=force_keyframes)
-        
+
         bot.edit_message_text(get_string('processing_request', user_data[chat_id]['language']), chat_id, processing_message_id)
         
         logger.info(f"Waiting for task result for user {username}")
