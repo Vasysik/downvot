@@ -60,8 +60,16 @@ def parse_timestamp(timestamp):
     except ValueError:
         raise ValueError("Invalid timestamp format. Use HH:MM:SS or '-'")
 
-def user_can_get_link(username: str) -> bool:
+def is_premium_user(username: str) -> bool:
     return username in PREMIUM_USERS
+
+def should_show_file_link(username: str) -> bool:
+    policy = FILE_LINK_BUTTON_POLICY.lower()
+    if policy == 'all':
+        return True
+    if policy == 'premium':
+        return is_premium_user(username)
+    return False
 
 def authorized_users_only(func):
     @wraps(func)
@@ -82,7 +90,7 @@ def authorized_users_only(func):
         if chat_id not in user_data: 
             user_data[chat_id] = {}
             user_data[chat_id]['language'] = message.from_user.language_code
-            user_data[chat_id]['is_premium'] = user_can_get_link(username)
+            user_data[chat_id]['is_premium'] = is_premium_user(username)
             logger.info(f"New user data created for {username}")
         
         if AUTO_ALLOWED_CHANNEL and not CHAT_MEMBER:
@@ -185,7 +193,7 @@ def process_request(chat_id, processing_message_id):
         start_time = processing_data.get('start_time', None)
         end_time = processing_data.get('end_time', None)
         force_keyframes = processing_data.get('force_keyframes', False)
-        link_allowed = user_can_get_link(username)
+        link_allowed = should_show_file_link(username)
 
         if start_time: start_time = format_duration(start_time)
         if end_time: end_time = format_duration(end_time)
