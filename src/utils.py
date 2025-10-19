@@ -267,7 +267,8 @@ def process_request(chat_id, processing_message_id):
             if file_type == 'video': 
                 if is_gif:
                     message = get_string('download_complete_gif', user_data[chat_id]['language'])
-                    caption = message.format(url=url, title=info['title'])
+                    video_quality_str = f"{video_format_info['height']}p{video_format_info['fps']}"
+                    caption = message.format(url=url, title=info['title'], video_quality=video_quality_str)
                     if start_time or end_time: caption += "\n"+get_string('download_fragment', user_data[chat_id]['language']).format(start_time=start_time or "00:00:00", end_time=end_time or format_duration(info['duration']))
                     bot.send_animation(chat_id, file_obj, caption=caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url, link_allowed))
                 else:
