@@ -183,7 +183,7 @@ def process_request(chat_id, processing_message_id):
         url = processing_data['url']
         file_type = processing_data['file_type']
         duration = processing_data.get('duration', 30)
-        video_format = processing_data['video_format']
+        video_format = processing_data.get('video_format') if file_type == 'video' else None
         audio_format = processing_data['audio_format']
         output_format = processing_data.get('output_format', 'mp4' if file_type == 'video' else 'mp3')
         total_size = processing_data['total_size']
@@ -198,9 +198,9 @@ def process_request(chat_id, processing_message_id):
         if start_time: start_time = format_duration(start_time)
         if end_time: end_time = format_duration(end_time)
 
-        logger.info(f"Request details for user {username}: file_type={file_type}, video_format={video_format}, audio_format={audio_format}, output_format={output_format}, duration={duration}")
+        logger.info(f"Request details for user {username}: file_type={file_type}, video_format={video_format or 'N/A'}, audio_format={audio_format}, output_format={output_format}, duration={duration}")
 
-        video_format_info = info['qualities']["video"][video_format] if file_type == 'video' else None
+        video_format_info = info['qualities']["video"][video_format] if video_format else None
         
         is_gif = (output_format == 'gif')
         

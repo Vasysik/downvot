@@ -364,7 +364,6 @@ def register_handlers(bot):
                 user_data[chat_id][processing_message_id]['video_format'] = video_quality
                 user_data[chat_id][processing_message_id]['audio_format'] = audio_quality
                 utils.process_request(chat_id, processing_message_id)
-                logger.info(f"Link from user {call.message.from_user.username} successfully processed!")
             elif call.data.startswith("select_output_format_"):
                 processing_message_id = call.data.split("_")[-1]
                 file_type = user_data[chat_id][processing_message_id]['file_type']
