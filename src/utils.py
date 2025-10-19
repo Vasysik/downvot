@@ -9,8 +9,8 @@ import math
 
 logger = logging.getLogger(__name__)
 
-VIDEO_FORMATS = ['mp4', 'mkv', 'webm', 'avi', 'mov', 'flv', 'gif']
-AUDIO_FORMATS = ['mp3', 'm4a', 'opus', 'flac', 'wav', 'aac', 'ogg']
+VIDEO_FORMATS = ['mp4', 'mkv', 'webm', 'gif']
+AUDIO_FORMATS = ['mp3', 'm4a', 'opus', 'aac']
 LANGUAGE_NAMES = {
     'en': 'English',
     'ru': 'Русский',
