@@ -199,10 +199,13 @@ def process_request(chat_id, processing_message_id):
             else:
                 task = client.send_task.get_live_audio(url=url, duration=duration, audio_format=audio_format, output_format=output_format)
         elif file_type == 'video':
-            task = client.send_task.get_video(url=url, video_format=video_format, audio_format=api_audio_format, output_format=api_output_format, start_time=start_time, end_time=end_time, force_keyframes=force_keyframes)
+            if is_gif:
+                task = client.send_task.get_video(url=url, video_format=video_format, output_format=api_output_format, start_time=start_time, end_time=end_time, force_keyframes=force_keyframes)
+            else:
+                task = client.send_task.get_video(url=url, video_format=video_format, audio_format=audio_format, output_format=output_format, start_time=start_time, end_time=end_time, force_keyframes=force_keyframes)
         else:
             task = client.send_task.get_audio(url=url, audio_format=audio_format, output_format=output_format, start_time=start_time, end_time=end_time, force_keyframes=force_keyframes)
-
+        
         bot.edit_message_text(get_string('processing_request', user_data[chat_id]['language']), chat_id, processing_message_id)
         
         logger.info(f"Waiting for task result for user {username}")
@@ -240,8 +243,7 @@ def process_request(chat_id, processing_message_id):
             filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'][:48])
             filename = re.sub(r'\s+', '_', filename) + f'_DownVot'
             if file_type == 'video': 
-                actual_output_format = 'mp4' if is_gif else output_format
-                filename += f"_{video_format_info['height']}p{video_format_info['fps']}.{actual_output_format}"
+                filename += f"_{video_format_info['height']}p{video_format_info['fps']}.{'gif' if is_gif else output_format}"
             else: 
                 filename += f"_{audio_format_info['abr']}kbps.{output_format}"
             file_obj.name = filename
@@ -251,17 +253,17 @@ def process_request(chat_id, processing_message_id):
                 if is_gif:
                     message = get_string('download_complete_gif', user_data[chat_id]['language'])
                     caption = message.format(url=url, title=info['title'])
-                    if start_time or end_time: caption += "\n"+get_string('download_fragment', user_data[chat_id]['language']).format(start_time=start_time, end_time=end_time)
+                    if start_time or end_time: caption += "\n"+get_string('download_fragment', user_data[chat_id]['language']).format(start_time=start_time or "00:00:00", end_time=end_time or format_duration(info['duration']))
                     bot.send_animation(chat_id, file_obj, caption=caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url, link_allowed))
                 else:
                     message = get_string('download_complete_video', user_data[chat_id]['language'])
                     caption = message.format(url=url, title=info['title'], video_quality=f"{video_format_info['height']}p{video_format_info['fps']}", audio_quality=f"{audio_format_info['abr']}kbps")
-                    if start_time or end_time: caption += "\n"+get_string('download_fragment', user_data[chat_id]['language']).format(start_time=start_time, end_time=end_time)
+                    if start_time or end_time: caption += "\n"+get_string('download_fragment', user_data[chat_id]['language']).format(start_time=start_time or "00:00:00", end_time=end_time or format_duration(info['duration']))
                     bot.send_video(chat_id, file_obj, caption=caption, supports_streaming=True, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url, link_allowed))
             else: 
                 message = get_string('download_complete_audio', user_data[chat_id]['language'])
                 caption = message.format(url=url, title=info['title'], audio_quality=f"{audio_format_info['abr']}kbps")
-                if start_time or end_time: caption += "\n"+get_string('download_fragment', user_data[chat_id]['language']).format(start_time=start_time, end_time=end_time)
+                if start_time or end_time: caption += "\n"+get_string('download_fragment', user_data[chat_id]['language']).format(start_time=start_time or "00:00:00", end_time=end_time or format_duration(info['duration']))
                 bot.send_audio(chat_id, file_obj, caption=caption, parse_mode='HTML', reply_markup=file_link_keyboard(user_data[chat_id]['language'], file_url, link_allowed))
         logger.info(f"Request processing completed successfully for user {username}")
     except APIError as e:
