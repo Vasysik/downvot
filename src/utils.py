@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 
 VIDEO_FORMATS = ['mp4', 'mkv', 'webm', 'avi', 'mov', 'flv', 'gif']
 AUDIO_FORMATS = ['mp3', 'm4a', 'opus', 'flac', 'wav', 'aac', 'ogg']
-MAX_GIF_SIZE = 30 * 1024 * 1024
 LANGUAGE_NAMES = {
     'en': 'English',
     'ru': 'Русский',
@@ -60,15 +59,6 @@ def parse_timestamp(timestamp):
         return hours * 3600 + minutes * 60 + seconds
     except ValueError:
         raise ValueError("Invalid timestamp format. Use HH:MM:SS or '-'")
-
-def estimate_gif_size(width: int,
-                      height: int,
-                      duration_sec: int,
-                      fps: int = 15,
-                      compression_ratio: float = 0.24) -> int:
-    frames = fps * duration_sec
-    uncompressed = width * height * frames
-    return int(uncompressed * compression_ratio)
 
 def user_can_get_link(username: str) -> bool:
     return username in load_config()['PREMIUM_USERS']
@@ -194,14 +184,22 @@ def process_request(chat_id, processing_message_id):
 
         video_format_info = info['qualities']["video"][video_format] if file_type == 'video' else None
         audio_format_info = info['qualities']["audio"][audio_format]
+
+        api_output_format = output_format
+        api_audio_format = audio_format
+
+        if output_format == 'gif':
+            api_output_format = 'mp4'
+            api_audio_format = None
+            logger.info("GIF selected. Requesting MP4 with no audio from the API.")
         
         if info['is_live'] and not user_data[chat_id].get('is_premium', False):
             if file_type == 'video':
-                task = client.send_task.get_live_video(url=url, duration=duration, video_format=video_format, audio_format=audio_format, output_format=output_format)
+                task = client.send_task.get_live_video(url=url, duration=duration, video_format=video_format, audio_format=api_audio_format, output_format=api_output_format)
             else:
                 task = client.send_task.get_live_audio(url=url, duration=duration, audio_format=audio_format, output_format=output_format)
         elif file_type == 'video':
-            task = client.send_task.get_video(url=url, video_format=video_format, audio_format=audio_format, output_format=output_format, start_time=start_time, end_time=end_time, force_keyframes=force_keyframes)
+            task = client.send_task.get_video(url=url, video_format=video_format, audio_format=api_audio_format, output_format=api_output_format, start_time=start_time, end_time=end_time, force_keyframes=force_keyframes)
         else:
             task = client.send_task.get_audio(url=url, audio_format=audio_format, output_format=output_format, start_time=start_time, end_time=end_time, force_keyframes=force_keyframes)
 
@@ -221,13 +219,6 @@ def process_request(chat_id, processing_message_id):
             if file_size > max_file_size:
                 file_size_out_of_range = True
         
-        if output_format == 'gif' and not file_size_out_of_range:
-            actual_size = file_size if 'file_obj' in locals() else total_size
-            if actual_size > MAX_GIF_SIZE:
-                bot.edit_message_text(get_string('gif_too_large', user_data[chat_id]['language']), chat_id, processing_message_id)
-                bot.send_message(chat_id, get_string('more_requests', user_data[chat_id]['language']))
-                return
-
         if file_size_out_of_range:
             if not link_allowed:
                 bot.send_message(chat_id, get_string('no_access_link', user_data[chat_id]['language']))
@@ -248,7 +239,8 @@ def process_request(chat_id, processing_message_id):
             filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'][:48])
             filename = re.sub(r'\s+', '_', filename) + f'_DownVot'
             if file_type == 'video': 
-                filename += f"_{video_format_info['height']}p{video_format_info['fps']}.{output_format}"
+                actual_output_format = 'mp4' if output_format == 'gif' else output_format
+                filename += f"_{video_format_info['height']}p{video_format_info['fps']}.{actual_output_format}"
             else: 
                 filename += f"_{audio_format_info['abr']}kbps.{output_format}"
             file_obj.name = filename
@@ -357,19 +349,16 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
         user_data[chat_id][processing_message_id]['video_format'] = default_video
     else:
         default_video = selected_video
-
-    if output_format != 'gif':
-        if user_data[chat_id][processing_message_id]['file_type'] == 'video':
-            if qualities["video"][default_video]["filesize"]:
-                total_size += qualities["video"][default_video]["filesize"]
-            elif qualities["video"][default_video].get("filesize_approx", 0):
-                total_size += qualities["video"][default_video]["filesize_approx"]
-            video_format = qualities["video"][default_video]
-            dynamic_range = 'HDR' if video_format['dynamic_range'] == 'HDR10' else ''
-            keyboard.row(InlineKeyboardButton(
-                f"{get_string('video_quality', user_data[chat_id]['language'])} {video_format['height']}p{video_format['fps']} {dynamic_range}",
-                callback_data=f"select_video_quality_{processing_message_id}"
-            ))
+    
+    if user_data[chat_id][processing_message_id]['file_type'] == 'video':
+        video_size = qualities["video"][default_video].get("filesize") or qualities["video"][default_video].get("filesize_approx", 0)
+        total_size += video_size
+        video_format = qualities["video"][default_video]
+        dynamic_range = 'HDR' if video_format['dynamic_range'] == 'HDR10' else ''
+        keyboard.row(InlineKeyboardButton(
+            f"{get_string('video_quality', user_data[chat_id]['language'])} {video_format['height']}p{video_format['fps']} {dynamic_range}",
+            callback_data=f"select_video_quality_{processing_message_id}"
+        ))
 
     selected_lang = user_data[chat_id][processing_message_id].get('selected_audio_lang')
     audio_langs = user_data[chat_id][processing_message_id].get('audio_langs', {})
@@ -390,10 +379,8 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
         default_audio = selected_audio
     
     if output_format != 'gif' and default_audio in qualities["audio"]:
-        if qualities["audio"][default_audio]["filesize"]:
-            total_size += qualities["audio"][default_audio]["filesize"]
-        elif qualities["audio"][default_audio].get("filesize_approx", 0):
-            total_size += qualities["audio"][default_audio]["filesize_approx"]
+        audio_size = qualities["audio"][default_audio].get("filesize") or qualities["audio"][default_audio].get("filesize_approx", 0)
+        total_size += audio_size
         audio_format = qualities["audio"][default_audio]
         keyboard.row(InlineKeyboardButton(
             f"{get_string('audio_quality', user_data[chat_id]['language'])} {audio_format['abr']}kbps",
@@ -430,24 +417,13 @@ def quality_keyboard(qualities, chat_id, processing_message_id, selected_video=N
 
     actual_duration = (end_time or duration) - (start_time or 0)
 
-    if output_format == 'gif':
-        vg_default = qualities["video"][default_video]
-        w_src, h_src = vg_default['width'], vg_default['height']
-        if not w_src or not h_src:
-            w_src, h_src = 480, 270
-        w_out = 480
-        h_out = int(w_out * h_src / w_src)
-        total_size = estimate_gif_size(w_out, h_out, actual_duration)
-    else:
-        if start_time is not None or end_time is not None:
-            total_size = total_size * (actual_duration / duration)
+    if duration and (start_time is not None or end_time is not None):
+        total_size = total_size * (actual_duration / duration)
 
     user_data[chat_id][processing_message_id]['total_size'] = total_size
     btn_text = f"{get_string('download_button', user_data[chat_id]['language'])} ≈{round(total_size / (1024*1024),1)}MB"
     
-    if output_format == 'gif' and total_size > MAX_GIF_SIZE:
-        keyboard.row(InlineKeyboardButton(text="🚫 " + btn_text, callback_data='deny_gif_size'))
-    elif (total_size > MAX_TELEGRAM_FILE_SIZE) and (not user_data[chat_id].get('is_premium', False)):
+    if (total_size > MAX_TELEGRAM_FILE_SIZE) and (not user_data[chat_id].get('is_premium', False)):
         keyboard.row(InlineKeyboardButton(text="🚫 " + btn_text, callback_data='deny_bigfile'))
     else:
         keyboard.row(InlineKeyboardButton(btn_text, callback_data=f"quality_{processing_message_id}_{default_video}_{default_audio}"))
