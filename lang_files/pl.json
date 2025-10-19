@@ -78,5 +78,6 @@
     },
     "audio_language": "Język audio",
     "select_audio_language": "Wybierz język audio:",
-    "original_language": "Oryginalny"
+    "original_language": "Oryginalny",
+    "inline_download_button": "Pobierz"
 }

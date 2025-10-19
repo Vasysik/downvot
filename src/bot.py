@@ -3,12 +3,12 @@ import time
 from telebot.apihelper import ApiTelegramException
 from telebot import types
 import telebot.apihelper
-from config import load_config, TELEGRAM_API_URL
+from config import load_config, TELEGRAM_API_URL, DEFAULT_LANGUAGE
 from handlers import register_handlers
 from state import bot
 from youtube_search import YoutubeSearch
-import re
-import base64
+from utils import get_string
+import re, base64
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,7 +32,8 @@ register_handlers(bot)
 def inline_query(query):
     try:
         search_query = query.query.strip()
-        logger.info(f"Inline search query from {query.from_user.username}: {search_query}")
+        user_lang = query.from_user.language_code or DEFAULT_LANGUAGE
+        logger.info(f"Inline search query from {query.from_user.username} (lang: {user_lang}): {search_query}")
         
         results = YoutubeSearch(search_query, max_results=10).to_dict()
         
@@ -49,17 +50,22 @@ def inline_query(query):
             deep_link_url = f"https://t.me/{BOT_USERNAME}?start=dl_{encoded_url}"
             
             keyboard = types.InlineKeyboardMarkup()
-            button = types.InlineKeyboardButton(text="📥 Download", url=deep_link_url)
+            button_text = get_string("inline_download_button", user_lang)
+            button = types.InlineKeyboardButton(text=button_text, url=deep_link_url)
             keyboard.add(button)
+            
+            input_content = types.InputTextMessageContent(
+                message_text=f"<a href='{video_url}'>{video['title']}</a>",
+                parse_mode='HTML',
+                disable_web_page_preview=False
+            )
             
             result = types.InlineQueryResultArticle(
                 id=str(i),
                 title=video['title'],
                 description=f"{video.get('channel', '')} • {video.get('duration', 'N/A')}",
                 reply_markup=keyboard,
-                input_message_content=types.InputTextMessageContent(
-                    message_text=f"Выбрано видео: {video['title']}\n{video_url}"
-                ),
+                input_message_content=input_content,
                 thumbnail_url=video['thumbnails'][0]
             )
             inline_results.append(result)
@@ -68,7 +74,6 @@ def inline_query(query):
 
     except Exception as e:
         logger.error(f"Inline query error: {e}", exc_info=True)
-
 
 def main():
     restart_count = 0

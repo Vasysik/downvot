@@ -78,5 +78,6 @@
     },
     "audio_language": "Audio language",
     "select_audio_language": "Select audio language:",
-    "original_language": "Original"
+    "original_language": "Original",
+    "inline_download_button": "Download"
 }
