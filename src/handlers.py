@@ -62,27 +62,58 @@ def register_handlers(bot):
     @bot.message_handler(commands=['download'])
     @utils.authorized_users_only
     def download_video(message):
+        chat_id = message.chat.id
         link = message.text[len('/download '):].strip()
+        
         if not link or not link.startswith(('http://', 'https://')):
             bot.reply_to(message, utils.get_string('send_video_link', user_data[chat_id]['language']))
             return
         
         source, cleaned_url = utils.detect_source(link)
         if not source:
-            bot.reply_to(message, utils.get_string('unknown_source', user_data[message.chat.id]['language']))
+            bot.reply_to(message, utils.get_string('unknown_source', user_data[chat_id]['language']))
             return
         
-        chat_id = message.chat.id
-        processing_message = bot.reply_to(
-            message,
-            utils.get_string('source_detected', user_data[chat_id]['language']).format(source=source),
-            reply_markup=utils.type_keyboard(user_data[chat_id]['language'])
-        )
+        processing_message = bot.reply_to(message, utils.get_string('getting_video_info', user_data[chat_id]['language']))
         processing_message_id = str(processing_message.message_id)
-        user_data[chat_id][processing_message_id] = {
-            'url': cleaned_url,
-            'source': source
-        }
+        
+        try:
+            client = user_data[chat_id]['client']
+            info = client.get_info(url=cleaned_url).get_json(['qualities', 'title', 'thumbnail', 'is_live', 'duration', 'language'])
+            
+            audio_langs = {}
+            for fmt_id, data in info['qualities']['audio'].items():
+                lang = data.get('language')
+                if lang:
+                    if lang not in audio_langs:
+                        audio_langs[lang] = []
+                    audio_langs[lang].append(fmt_id)
+            
+            default_lang = info.get('language')
+            if not default_lang or default_lang not in audio_langs:
+                default_lang = next(iter(audio_langs)) if audio_langs else None
+            
+            user_data[chat_id][processing_message_id] = {
+                'url': cleaned_url,
+                'source': source,
+                'file_info': info,
+                'audio_langs': audio_langs,
+                'selected_audio_lang': default_lang
+            }
+            
+            bot.edit_message_text(
+                utils.get_string('source_detected', user_data[chat_id]['language']).format(source=source), 
+                message.chat.id,
+                processing_message_id,
+                reply_markup=utils.type_keyboard(user_data[chat_id]['language'])
+            )
+        except Exception as e:
+            logger.error(f"Error getting video information: {str(e)}")
+            bot.edit_message_text(
+                utils.get_string('video_info_error', user_data[chat_id]['language']), 
+                message.chat.id,
+                processing_message_id
+            )
 
     @bot.message_handler(commands=['search'])
     @utils.authorized_users_only

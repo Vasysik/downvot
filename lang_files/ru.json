@@ -30,7 +30,7 @@
     "key_creation_error": "Не удалось создать ключ. Ошибка:\n<code>{error}</code>",
     "key_deleted_successfully": "Ключ пользователя <code>{username}</code> успешно удален.",
     "key_deletion_error": "Не удалось удалить ключ на сервере. Ошибка:\n<code>{error}</code>",
-    "processing_error": "Произошла ошибка при обработке запроса:\n<code>{error}</code>",
+    "processing_error": "Произошла ошибка при обработке запроса:\n<code>{error}</code>\nПожалуйста, попробуйте еще раз.",
     "video_button": "Видео",
     "audio_button": "Аудио",
     "create_key_button": "Создать ключ",

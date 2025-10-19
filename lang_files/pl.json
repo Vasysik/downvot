@@ -30,7 +30,7 @@
     "key_creation_error": "Nie udało się utworzyć klucza. Błąd:\n<code>{error}</code>",
     "key_deleted_successfully": "Klucz użytkownika <code>{username}</code> został pomyślnie usunięty.",
     "key_deletion_error": "Nie udało się usunąć klucza na serwerze. Błąd:\n<code>{error}</code>",
-    "processing_error": "Wystąpił błąd podczas przetwarzania żądania:\n<code>{error}</code>",
+    "processing_error": "Wystąpił błąd podczas przetwarzania żądania:\n<code>{error}</code>\nProszę spróbować ponownie.",
     "video_button": "Wideo",
     "audio_button": "Audio",
     "create_key_button": "Utwórz klucz",

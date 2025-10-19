@@ -1,11 +1,13 @@
-import logging, time
-from telebot.apihelper import ApiTelegramException, types
+import logging
+import time
+from telebot.apihelper import ApiTelegramException
+from telebot import types
 import telebot.apihelper
-from config import load_config, TELEGRAM_API_URL, MAX_FILE_SIZE_MB
+from config import load_config, TELEGRAM_API_URL
 from handlers import register_handlers
 from state import bot
-import utils
-import io
+from youtube_search import YoutubeSearch
+import re
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,6 +19,43 @@ else:
     logger.info("Using default Telegram API URL")
 
 register_handlers(bot)
+
+@bot.inline_handler(lambda query: len(query.query) > 2)
+def inline_query(query):
+    try:
+        search_query = query.query.strip()
+        logger.info(f"Inline search query from {query.from_user.username}: {search_query}")
+        
+        results = YoutubeSearch(search_query, max_results=10).to_dict()
+        
+        inline_results = []
+        for i, video in enumerate(results):
+            video_id_match = re.search(r'[?&]v=([^&]+)', video['url_suffix'])
+            if not video_id_match:
+                continue
+            
+            video_id = video_id_match.group(1)
+            video_url = f"https://www.youtube.com/watch?v={video_id}"
+            
+            input_content = types.InputTextMessageContent(
+                message_text=f"/download {video_url}",
+                disable_web_page_preview=False
+            )
+            
+            result = types.InlineQueryResultArticle(
+                id=str(i),
+                title=video['title'],
+                description=f"{video.get('channel', '')} • {video.get('duration', 'N/A')} • {video.get('views', 'N/A')}",
+                input_message_content=input_content,
+                thumbnail_url=video['thumbnails'][0]
+            )
+            inline_results.append(result)
+        
+        bot.answer_inline_query(query.id, inline_results, cache_time=5)
+
+    except Exception as e:
+        logger.error(f"Inline query error: {e}")
+
 
 def main():
     restart_count = 0
@@ -33,65 +72,7 @@ def main():
             logger.error(f"Unexpected error: {e}. Restarting bot. Restart count: {restart_count}")
             time.sleep(5)
 
-# !!!!! Requires fixing !!!!!
-# @bot.inline_handler(lambda query: len(query.query) > 0)
-# def inline_query(query):
-#     try:
-#         url = query.query.strip()
-#         if not url.startswith(('http://', 'https://')):
-#             return
-            
-#         source = utils.detect_source(url)
-#         if not source:
-#             return
-        
-#         client = utils.get_or_create_client(query.from_user)
-#         info = client.get_info(url=url).get_json(['qualities', 'title', 'thumbnail', 'is_live', 'duration'])
-        
-#         if info['is_live']:
-#             return
-        
-#         best_video = list(info["qualities"]["video"].items())[-1]
-#         best_audio = list(info["qualities"]["audio"].items())[-1]
-        
-#         video_task = client.send_task.get_video(
-#             url=url,
-#             video_format=best_video[0],
-#             audio_format=best_audio[0]
-#         )
-
-#         audio_task = client.send_task.get_audio(
-#             url=url,
-#             audio_format=best_audio[0]
-#         )
-
-#         logger.info(f'inline tasks: {video_task.task_id} {audio_task.task_id}')
-
-#         video_result = video_task.get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
-#         audio_result = audio_task.get_result(max_retries=config['MAX_GET_RESULT_RETRIES'])
-
-#         results = [
-#             types.InlineQueryResultVideo(
-#                 id="video",
-#                 video_url=f'{video_result.get_file_url()}?raw=true',
-#                 title=f"Video: {info['title']}",
-#                 thumbnail_url=info['thumbnail'],
-#                 mime_type="video/mp4"
-#             ),
-#             types.InlineQueryResultAudio(
-#                 id="audio",
-#                 audio_url=f'{audio_result.get_file_url()}?raw=true',
-#                 title=f"Audio: {info['title']}"
-#             )
-#         ]
-            
-#         bot.answer_inline_query(query.id, results, cache_time=0)
-        
-#     except Exception as e:
-#         logger.error(f"Inline query error: {e}")
-
 if __name__ == "__main__":
     config = load_config()
     logger.info("Bot initialized")
-    logger.info(f"Max file size: {MAX_FILE_SIZE_MB} MB")
     main()

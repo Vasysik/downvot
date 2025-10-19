@@ -30,7 +30,7 @@
     "key_creation_error": "Failed to create key. Error:\n<code>{error}</code>",
     "key_deleted_successfully": "Key for user <code>{username}</code> successfully deleted.",
     "key_deletion_error": "Failed to delete key on the server. Error:\n<code>{error}</code>",
-    "processing_error": "An error occurred while processing the request:\n<code>{error}</code>",
+    "processing_error": "An error occurred while processing the request:\n<code>{error}</code>\nPlease try again.",
     "video_button": "Video",
     "audio_button": "Audio",
     "create_key_button": "Create key",

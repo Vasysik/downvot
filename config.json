@@ -1,15 +1,23 @@
 {
     "BOT_TOKEN": "<your-telegram-bot-token>",
-    "ADMIN_API_KEY": "<yt-dlp-host-admin-key>",
-    "API_BASE_URL": "<yt-dlp-host-url>",
     "TELEGRAM_API_URL": "",
-    "ALLOWED_USERS": ["<telegram-username>"],
-    "PREMIUM_USERS": ["<telegram-username>"],
-    "AUTO_CREATE_KEY": true,
-    "MAX_FILE_SIZE_MB": 50,
-    "MAX_GET_RESULT_RETRIES": 480,
-    "MAX_SEARCH_RESULTS": 50,
-    "AUTO_ALLOWED_CHANNEL": "",
-    "DEFAULT_LANGUAGE": "ru",
-    "INLINE_MODE": true
+
+    "API_BASE_URL": "<yt-dlp-host-url>",
+    "ADMIN_API_KEY": "<yt-dlp-host-admin-key>",
+
+    "ACCESS_CONTROL": {
+        "ALLOWED_USERS": ["<telegram-username>"],
+        "PREMIUM_USERS": ["<telegram-username>"],
+        "AUTO_ALLOWED_CHANNEL": "",
+        "AUTO_CREATE_KEY": true,
+        "FILE_LINK_BUTTON_POLICY": "premium"
+    },
+
+    "BOT_SETTINGS": {
+        "DEFAULT_LANGUAGE": "ru",
+        "INLINE_MODE": true,
+        "MAX_FILE_SIZE_MB": 50,
+        "MAX_GET_RESULT_RETRIES": 480,
+        "MAX_SEARCH_RESULTS": 50
+    }
 }
