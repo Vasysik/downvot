@@ -1,5 +1,5 @@
 from functools import wraps
-from config import load_config, AUTO_CREATE_KEY, AUTO_ALLOWED_CHANNEL, DEFAULT_LANGUAGE, LANGUAGES, MAX_GET_RESULT_RETRIES, MAX_TELEGRAM_FILE_SIZE
+from config import load_config, AUTO_CREATE_KEY, AUTO_ALLOWED_CHANNEL, DEFAULT_LANGUAGE, LANGUAGES, MAX_GET_RESULT_RETRIES, MAX_TELEGRAM_FILE_SIZE, FILE_LINK_BUTTON_POLICY, PREMIUM_USERS, ALLOWED_USERS
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery, InputMediaPhoto
 from yt_dlp_host_api.exceptions import APIError
 from state import user_data, bot, admin, api
@@ -77,7 +77,7 @@ def authorized_users_only(func):
             return
         
         logger.info(f"Authorizing user: {username}")
-        CHAT_MEMBER = username in load_config()['ALLOWED_USERS']
+        CHAT_MEMBER = username in ALLOWED_USERS
 
         if chat_id not in user_data: 
             user_data[chat_id] = {}
