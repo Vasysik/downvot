@@ -1,16 +1,78 @@
-from state import user_data
+from state import user_data, bot
 from youtube_search import YoutubeSearch
 from config import MAX_SEARCH_RESULTS
-import utils, logging, re
+import utils, logging, re, base64
 
 logger = logging.getLogger(__name__)
+
+def initiate_download_process(message, url):
+    chat_id = message.chat.id
+    source, cleaned_url = utils.detect_source(url)
+    
+    if not source:
+        bot.reply_to(message, utils.get_string('unknown_source', user_data[chat_id]['language']))
+        return
+
+    processing_message = bot.send_message(chat_id, utils.get_string('getting_video_info', user_data[chat_id]['language']))
+    processing_message_id = str(processing_message.message_id)
+    
+    try:
+        client = user_data[chat_id]['client']
+        info = client.get_info(url=cleaned_url).get_json(['qualities', 'title', 'thumbnail', 'is_live', 'duration', 'language'])
+        
+        audio_langs = {}
+        for fmt_id, data in info['qualities']['audio'].items():
+            lang = data.get('language')
+            if lang:
+                if lang not in audio_langs:
+                    audio_langs[lang] = []
+                audio_langs[lang].append(fmt_id)
+        
+        default_lang = info.get('language')
+        if not default_lang or default_lang not in audio_langs:
+            default_lang = next(iter(audio_langs)) if audio_langs else None
+        
+        user_data[chat_id][processing_message_id] = {
+            'url': cleaned_url,
+            'source': source,
+            'file_info': info,
+            'audio_langs': audio_langs,
+            'selected_audio_lang': default_lang
+        }
+        
+        bot.edit_message_text(
+            utils.get_string('source_detected', user_data[chat_id]['language']).format(source=source), 
+            chat_id,
+            processing_message_id,
+            reply_markup=utils.type_keyboard(user_data[chat_id]['language'])
+        )
+    except Exception as e:
+        logger.error(f"Error getting video information: {str(e)}")
+        bot.edit_message_text(
+            utils.get_string('video_info_error', user_data[chat_id]['language']), 
+            chat_id,
+            processing_message_id
+        )
 
 def register_handlers(bot):
     @bot.message_handler(commands=['start'])
     @utils.authorized_users_only
     def start_message(message):
-        logger.info(f"User {message.from_user.username} {user_data[message.chat.id]['language']} started the bot")
-        bot.reply_to(message, utils.get_string("start_message", user_data[message.chat.id]['language']))
+        chat_id = message.chat.id
+        args = message.text.split()
+        if len(args) > 1 and args[1].startswith('dl_'):
+            try:
+                encoded_url = args[1][3:]
+                padded_encoded_url = encoded_url + '=' * (-len(encoded_url) % 4)
+                video_url = base64.urlsafe_b64decode(padded_encoded_url).decode('utf-8')
+                logger.info(f"User {message.from_user.username} started with deep link for URL: {video_url}")
+                initiate_download_process(message, video_url)
+                return
+            except Exception as e:
+                logger.error(f"Deep link decoding failed: {e}. Payload: {args[1]}")
+        
+        logger.info(f"User {message.from_user.username} {user_data[chat_id]['language']} started the bot")
+        bot.reply_to(message, utils.get_string("start_message", user_data[chat_id]['language']))
     
     @bot.message_handler(commands=['admin'])
     @utils.authorized_users_only
@@ -62,58 +124,8 @@ def register_handlers(bot):
     @bot.message_handler(commands=['download'])
     @utils.authorized_users_only
     def download_video(message):
-        chat_id = message.chat.id
         link = message.text[len('/download '):].strip()
-        
-        if not link or not link.startswith(('http://', 'https://')):
-            bot.reply_to(message, utils.get_string('send_video_link', user_data[chat_id]['language']))
-            return
-        
-        source, cleaned_url = utils.detect_source(link)
-        if not source:
-            bot.reply_to(message, utils.get_string('unknown_source', user_data[chat_id]['language']))
-            return
-        
-        processing_message = bot.reply_to(message, utils.get_string('getting_video_info', user_data[chat_id]['language']))
-        processing_message_id = str(processing_message.message_id)
-        
-        try:
-            client = user_data[chat_id]['client']
-            info = client.get_info(url=cleaned_url).get_json(['qualities', 'title', 'thumbnail', 'is_live', 'duration', 'language'])
-            
-            audio_langs = {}
-            for fmt_id, data in info['qualities']['audio'].items():
-                lang = data.get('language')
-                if lang:
-                    if lang not in audio_langs:
-                        audio_langs[lang] = []
-                    audio_langs[lang].append(fmt_id)
-            
-            default_lang = info.get('language')
-            if not default_lang or default_lang not in audio_langs:
-                default_lang = next(iter(audio_langs)) if audio_langs else None
-            
-            user_data[chat_id][processing_message_id] = {
-                'url': cleaned_url,
-                'source': source,
-                'file_info': info,
-                'audio_langs': audio_langs,
-                'selected_audio_lang': default_lang
-            }
-            
-            bot.edit_message_text(
-                utils.get_string('source_detected', user_data[chat_id]['language']).format(source=source), 
-                message.chat.id,
-                processing_message_id,
-                reply_markup=utils.type_keyboard(user_data[chat_id]['language'])
-            )
-        except Exception as e:
-            logger.error(f"Error getting video information: {str(e)}")
-            bot.edit_message_text(
-                utils.get_string('video_info_error', user_data[chat_id]['language']), 
-                message.chat.id,
-                processing_message_id
-            )
+        initiate_download_process(message, link)
 
     @bot.message_handler(commands=['search'])
     @utils.authorized_users_only
@@ -165,52 +177,7 @@ def register_handlers(bot):
     @utils.authorized_users_only
     def handle_message(message):
         if message.text.startswith(('http://', 'https://')):
-            source, cleaned_url = utils.detect_source(message.text)
-            if source:
-                logger.info(f"Received link from user {message.from_user.username}: {message.text} -> cleaned: {cleaned_url}")
-                
-                processing_message = bot.reply_to(message, utils.get_string('getting_video_info', user_data[message.chat.id]['language']))
-                processing_message_id = str(processing_message.message_id)
-                
-                try:
-                    client = user_data[message.chat.id]['client']
-                    info = client.get_info(url=cleaned_url).get_json(['qualities', 'title', 'thumbnail', 'is_live', 'duration', 'language'])
-                    
-                    audio_langs = {}
-                    for fmt_id, data in info['qualities']['audio'].items():
-                        lang = data.get('language')
-                        if lang:
-                            if lang not in audio_langs:
-                                audio_langs[lang] = []
-                            audio_langs[lang].append(fmt_id)
-                    
-                    default_lang = info.get('language')
-                    if not default_lang or default_lang not in audio_langs:
-                        default_lang = next(iter(audio_langs)) if audio_langs else None
-                    
-                    user_data[message.chat.id][processing_message_id] = {
-                        'url': cleaned_url,
-                        'source': source,
-                        'file_info': info,
-                        'audio_langs': audio_langs,
-                        'selected_audio_lang': default_lang
-                    }
-                    
-                    bot.edit_message_text(
-                        utils.get_string('source_detected', user_data[message.chat.id]['language']).format(source=source), 
-                        message.chat.id,
-                        processing_message_id,
-                        reply_markup=utils.type_keyboard(user_data[message.chat.id]['language'])
-                    )
-                except Exception as e:
-                    logger.error(f"Error getting video information: {str(e)}")
-                    bot.edit_message_text(
-                        utils.get_string('video_info_error', user_data[message.chat.id]['language']), 
-                        message.chat.id,
-                        processing_message_id
-                    )
-            else:
-                bot.reply_to(message, utils.get_string('unknown_source', user_data[message.chat.id]['language']))
+            initiate_download_process(message, message.text)
         else:
             searching_message = bot.send_message(message.chat.id, utils.get_string('searching', user_data[message.chat.id]['language']))
             try:
@@ -479,55 +446,9 @@ def register_handlers(bot):
                     link = f"https://www.youtube.com/watch?v={video_id}"
                 else: 
                     link = f"https://www.youtube.com{result['url_suffix']}"
-                source, cleaned_url = utils.detect_source(link)
+                
+                initiate_download_process(call.message, link)
 
-                if source:
-                    chat_id = call.message.chat.id
-                    processing_message = bot.send_message(
-                        chat_id,
-                        utils.get_string('getting_video_info', user_data[chat_id]['language'])
-                    )
-                    processing_message_id = str(processing_message.message_id)
-                    
-                    try:
-                        client = user_data[chat_id]['client']
-                        info = client.get_info(url=cleaned_url).get_json(['qualities', 'title', 'thumbnail', 'is_live', 'duration', 'language'])
-                        
-                        audio_langs = {}
-                        for fmt_id, data in info['qualities']['audio'].items():
-                            lang = data.get('language')
-                            if lang:
-                                if lang not in audio_langs:
-                                    audio_langs[lang] = []
-                                audio_langs[lang].append(fmt_id)
-                        
-                        default_lang = info.get('language')
-                        if not default_lang or default_lang not in audio_langs:
-                            default_lang = next(iter(audio_langs)) if audio_langs else None
-                        
-                        user_data[chat_id][processing_message_id] = {
-                            'url': cleaned_url,
-                            'source': source,
-                            'file_info': info,
-                            'audio_langs': audio_langs,
-                            'selected_audio_lang': default_lang
-                        }
-                        
-                        bot.edit_message_text(
-                            utils.get_string('source_detected', user_data[chat_id]['language']).format(source=source),
-                            chat_id,
-                            processing_message_id,
-                            reply_markup=utils.type_keyboard(user_data[chat_id]['language'])
-                        )
-                    except Exception as e:
-                        logger.error(f"Error getting video information: {str(e)}")
-                        bot.edit_message_text(
-                            utils.get_string('video_info_error', user_data[chat_id]['language']),
-                            chat_id,
-                            processing_message_id
-                        )
-                else:
-                    bot.send_message(call.message.chat.id, utils.get_string('unknown_source', user_data[call.message.chat.id]['language']))
             elif call.data == 'deny_bigfile':
                 bot.answer_callback_query(call.id, utils.get_string('no_access_link', user_data[chat_id]['language']), show_alert=True)
                 return
