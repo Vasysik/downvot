@@ -249,8 +249,8 @@ def process_request(chat_id, processing_message_id):
             logger.info(f"Preparing to send file for user {username}")
             filename = re.sub(r'[^a-zA-ZÀ-žа-яА-ЯёЁ0-9;_ ]', '', info['title'][:48])
             filename = re.sub(r'\s+', '_', filename) + f'_DownVot'
-            if file_type == 'video': 
-                filename += f"_{video_format_info['height']}p{video_format_info['fps']}.{'gif' if is_gif else output_format}"
+            if file_type == 'video':
+                filename += f"_{video_format_info['height']}p{video_format_info['fps']}.{api_output_format}"
             else: 
                 filename += f"_{audio_format_info['abr']}kbps.{output_format}"
             file_obj.name = filename
