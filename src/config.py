@@ -17,17 +17,29 @@ def load_language(lang_code):
         return json.load(lang_file)
 
 config = load_config()
+
+# --- Main Bot and API Config ---
 BOT_TOKEN = config['BOT_TOKEN']
 API_BASE_URL = config['API_BASE_URL']
 ADMIN_API_KEY = config['ADMIN_API_KEY']
-AUTO_CREATE_KEY = config['AUTO_CREATE_KEY']
-AUTO_ALLOWED_CHANNEL = config['AUTO_ALLOWED_CHANNEL']
-DEFAULT_LANGUAGE = config['DEFAULT_LANGUAGE']
-MAX_GET_RESULT_RETRIES = config['MAX_GET_RESULT_RETRIES']
-MAX_SEARCH_RESULTS = config['MAX_SEARCH_RESULTS']
 TELEGRAM_API_URL = config.get('TELEGRAM_API_URL', '')
-MAX_FILE_SIZE_MB = config.get('MAX_FILE_SIZE_MB', 50)
+
+# --- Access Control Config ---
+access_config = config.get('ACCESS_CONTROL', {})
+ALLOWED_USERS = access_config.get('ALLOWED_USERS', [])
+PREMIUM_USERS = access_config.get('PREMIUM_USERS', [])
+AUTO_ALLOWED_CHANNEL = access_config.get('AUTO_ALLOWED_CHANNEL', '')
+AUTO_CREATE_KEY = access_config.get('AUTO_CREATE_KEY', True)
+FILE_LINK_BUTTON_POLICY = access_config.get('FILE_LINK_BUTTON_POLICY', 'premium') # 'all', 'premium', 'none'
+
+# --- Bot Behavior Settings ---
+settings_config = config.get('BOT_SETTINGS', {})
+DEFAULT_LANGUAGE = settings_config.get('DEFAULT_LANGUAGE', 'ru')
+MAX_GET_RESULT_RETRIES = settings_config.get('MAX_GET_RESULT_RETRIES', 480)
+MAX_SEARCH_RESULTS = settings_config.get('MAX_SEARCH_RESULTS', 50)
+MAX_FILE_SIZE_MB = settings_config.get('MAX_FILE_SIZE_MB', 50)
 MAX_TELEGRAM_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024
+
 LANGUAGES = {
     'en': load_language('en'),
     'ru': load_language('ru'),
